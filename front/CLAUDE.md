@@ -12,6 +12,7 @@
 - **프레임워크**: React 19
 - **빌드 도구**: Vite 7
 - **언어**: JavaScript (ES6+)
+- **스타일링**: Tailwind CSS ✅
 - **린팅**: ESLint
 
 ### 핵심 목표
@@ -24,10 +25,16 @@
 
 ## 🛠 현재 설치된 패키지
 
+### 프로덕션 의존성
 - `react`: ^19.1.1 - UI 라이브러리
 - `react-dom`: ^19.1.1 - React DOM 렌더러
+
+### 개발 의존성
 - `vite`: ^7.1.7 - 빌드 도구 및 개발 서버
 - `eslint`: ^9.36.0 - 코드 품질 관리
+- `tailwindcss`: ^3.4.18 - 유틸리티 퍼스트 CSS 프레임워크 ✅
+- `postcss`: ^8.5.6 - CSS 변환 도구 ✅
+- `autoprefixer`: ^10.4.21 - CSS 벤더 프리픽스 자동 추가 ✅
 
 ---
 
@@ -320,95 +327,251 @@ export const eventAPI = {
 
 ---
 
-## 🎨 스타일링 가이드
+## 🎨 스타일링 가이드 (Tailwind CSS)
 
-### CSS 모듈 사용 패턴
+### Tailwind CSS 초기 설정
+
+```bash
+# 이미 설치됨 ✅
+npm install -D tailwindcss postcss autoprefixer
+
+# 설정 파일 생성
+npx tailwindcss init -p
+```
+
+**tailwind.config.js 설정:**
+```javascript
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      // 커스텀 색상, 간격 등 추가
+    },
+  },
+  plugins: [],
+}
+```
+
+**src/index.css에 추가:**
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 커스텀 스타일 */
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
+  }
+}
+```
+
+### Tailwind 컴포넌트 패턴
+
+#### 1. 기본 버튼 컴포넌트
 
 ```javascript
-// Button.module.css
-.button {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.primary {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.primary:hover {
-  background-color: #2563eb;
-}
-
-.secondary {
-  background-color: #e5e7eb;
-  color: #1f2937;
-}
-
-// Button.jsx
-import styles from './Button.module.css'
-
-function Button({ variant = 'primary', children }) {
+function Button({ variant = 'primary', children, disabled, className = '' }) {
+  const baseStyles = 'px-4 py-2 rounded-lg font-medium transition-colors duration-200'
+  
+  const variants = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400',
+    danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50'
+  }
+  
+  const disabledStyles = 'opacity-50 cursor-not-allowed pointer-events-none'
+  
   return (
-    <button className={`${styles.button} ${styles[variant]}`}>
+    <button 
+      className={`
+        ${baseStyles} 
+        ${variants[variant]} 
+        ${disabled ? disabledStyles : ''} 
+        ${className}
+      `}
+      disabled={disabled}
+    >
       {children}
     </button>
   )
 }
+
+// 사용
+<Button variant="primary">저장</Button>
+<Button variant="secondary" className="w-full">전체 너비</Button>
 ```
 
-### 조건부 클래스네임
+#### 2. 조건부 스타일 (추천 패키지: clsx)
 
 ```javascript
 // 간단한 방법
-function Button({ variant, disabled }) {
-  const className = `btn ${disabled ? 'btn-disabled' : ''} btn-${variant}`
-  return <button className={className}>클릭</button>
+function Card({ active, large }) {
+  return (
+    <div className={`
+      p-4 rounded-lg border
+      ${active ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
+      ${large ? 'p-6' : 'p-4'}
+    `}>
+      컨텐츠
+    </div>
+  )
 }
 
-// 객체로 관리
-function Button({ variant, disabled, large }) {
+// 배열 방식 (더 깔끔)
+function Card({ active, large }) {
   const classes = [
-    'btn',
-    `btn-${variant}`,
-    disabled && 'btn-disabled',
-    large && 'btn-large'
+    'p-4 rounded-lg border',
+    active ? 'border-blue-500 bg-blue-50' : 'border-gray-200',
+    large && 'p-6'
   ].filter(Boolean).join(' ')
   
-  return <button className={classes}>클릭</button>
+  return <div className={classes}>컨텐츠</div>
 }
 ```
 
-### 모바일 우선 디자인 원칙
+**clsx 사용 (선택사항):**
+```bash
+npm install clsx
+```
 
-```css
-/* 기본: 모바일 스타일 */
-.container {
-  width: 100%;
-  padding: 1rem;
-}
+```javascript
+import clsx from 'clsx'
 
-/* 태블릿 이상 */
-@media (min-width: 768px) {
-  .container {
-    width: 50%;
-    padding: 2rem;
-  }
-}
-
-/* 데스크톱 */
-@media (min-width: 1024px) {
-  .container {
-    width: 33.333%;
-  }
+function Card({ active, large, className }) {
+  return (
+    <div className={clsx(
+      'p-4 rounded-lg border',
+      active ? 'border-blue-500 bg-blue-50' : 'border-gray-200',
+      large && 'p-6',
+      className
+    )}>
+      컨텐츠
+    </div>
+  )
 }
 ```
 
-**터치 타겟 최소 크기:**
-- 버튼/링크: 최소 44x44px
-- 아이콘: 최소 48x48px 터치 영역
+### 모바일 우선 반응형 디자인
+
+```javascript
+// Tailwind는 기본적으로 모바일 우선
+function ResponsiveLayout() {
+  return (
+    <div className="
+      w-full p-4           // 모바일 (기본)
+      md:w-1/2 md:p-6      // 태블릿 (768px+)
+      lg:w-1/3 lg:p-8      // 데스크톱 (1024px+)
+      xl:w-1/4             // 대형 화면 (1280px+)
+    ">
+      <h1 className="text-xl md:text-2xl lg:text-3xl">
+        반응형 제목
+      </h1>
+    </div>
+  )
+}
+
+// 그리드 레이아웃
+function EventGrid({ events }) {
+  return (
+    <div className="
+      grid gap-4
+      grid-cols-1           // 모바일: 1열
+      sm:grid-cols-2        // 작은 화면: 2열
+      lg:grid-cols-3        // 큰 화면: 3열
+      xl:grid-cols-4        // 초대형: 4열
+    ">
+      {events.map(event => (
+        <EventCard key={event.id} event={event} />
+      ))}
+    </div>
+  )
+}
+```
+
+### 터치 타겟 최소 크기
+
+```javascript
+// 버튼: 최소 44x44px (Apple HIG)
+<button className="min-h-[44px] min-w-[44px] px-6 py-2">
+  버튼
+</button>
+
+// 아이콘 버튼: 48x48px 영역
+<button className="w-12 h-12 flex items-center justify-center">
+  <Icon className="w-6 h-6" />
+</button>
+
+// 터치 영역 확장 (시각적 크기는 작게, 터치는 크게)
+<button className="relative">
+  <span className="text-sm">작은 텍스트</span>
+  <span className="absolute inset-0 -m-2" /> {/* 터치 영역 확장 */}
+</button>
+```
+
+### 커스텀 디자인 토큰
+
+```javascript
+// tailwind.config.js
+export default {
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#eff6ff',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        },
+        // eventManager 브랜드 컬러
+        brand: {
+          blue: '#3b82f6',
+          dark: '#1e293b',
+        }
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+      },
+      minHeight: {
+        'touch': '44px', // 터치 타겟 최소 높이
+      },
+    },
+  },
+}
+
+// 사용
+<button className="bg-primary-600 hover:bg-primary-700 min-h-touch">
+  클릭
+</button>
+```
+
+### 다크 모드 (선택사항)
+
+```javascript
+// tailwind.config.js
+export default {
+  darkMode: 'class', // 또는 'media'
+  // ...
+}
+
+// 사용
+function Card() {
+  return (
+    <div className="
+      bg-white text-gray-900
+      dark:bg-gray-800 dark:text-white
+    ">
+      다크 모드 지원 카드
+    </div>
+  )
+}
+```
 
 ---
 
@@ -523,48 +686,65 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 ### 외부 문서
 - [React 공식 문서](https://react.dev)
 - [Vite 공식 문서](https://vitejs.dev)
+- [Tailwind CSS 공식 문서](https://tailwindcss.com)
+- [Tailwind CSS Cheat Sheet](https://nerdcave.com/tailwind-cheat-sheet)
 - [MDN Web Docs](https://developer.mozilla.org)
 
 ---
 
 ## 🎯 다음 단계
 
-### 1단계: 기술 스택 결정
-- [ ] 스타일링 방법 선택 (Tailwind CSS, CSS Modules, Styled Components 등)
+### ✅ 1단계: Tailwind CSS 설정 완료!
+
+**완료된 작업:**
+- ✅ Tailwind CSS v3.4.18 설치
+- ✅ `tailwind.config.js` 생성 및 구성
+  - content 경로: `./index.html`, `./src/**/*.{js,jsx}`
+  - 커스텀 브랜드 컬러 (primary, brand)
+  - 터치 타겟 최소 크기 (44px)
+- ✅ `postcss.config.js` 생성
+- ✅ `src/index.css`에 Tailwind 디렉티브 추가
+- ✅ 커스텀 버튼 클래스 (`.btn-primary`, `.btn-secondary`)
+
+### 2단계: 추가 기술 스택 결정
 - [ ] 라우팅 라이브러리 선택 (React Router, TanStack Router 등)
 - [ ] 상태 관리 방식 결정 (Context API, Zustand, Redux 등)
 - [ ] HTTP 클라이언트 선택 (fetch API, axios 등)
 - [ ] 오프라인 저장소 선택 (localStorage, IndexedDB 등)
+- [ ] 유틸리티: `clsx` (조건부 클래스), `date-fns` (날짜)
 
-### 2단계: 프로젝트 구조 설정
+### 3단계: 프로젝트 구조 설정
 ```bash
 # 필요한 디렉토리 생성
-mkdir -p src/components
+mkdir -p src/components/common
+mkdir -p src/components/layout
+mkdir -p src/components/features
 mkdir -p src/pages
 mkdir -p src/hooks
 mkdir -p src/utils
 mkdir -p src/constants
 ```
 
-### 3단계: 기본 설정
+### 4단계: 기본 설정
 - [ ] 환경 변수 설정 (.env 파일)
-- [ ] 글로벌 스타일 작성
+- [ ] Tailwind 커스텀 설정 (색상, 간격)
 - [ ] 라우팅 기본 구조 설정
 - [ ] API 통신 유틸리티 작성
 
-### 4단계: 공통 컴포넌트 개발
-- [ ] Button (버튼)
-- [ ] Input (입력 필드)
-- [ ] Modal (모달)
+### 5단계: 공통 컴포넌트 개발 (Tailwind 활용)
+- [ ] Button (버튼) - variant 지원
+- [ ] Input (입력 필드) - validation 표시
+- [ ] Modal (모달) - 애니메이션
 - [ ] Loading (로딩 인디케이터)
 - [ ] ErrorBoundary (에러 처리)
+- [ ] Card (카드 레이아웃)
 
-### 5단계: 화면 구현
+### 6단계: 화면 구현
 - [ ] 온보딩 화면 ([화면 정의서 참조](../docs/screens/01_ONBOARDING.md))
 - [ ] 로그인/회원가입
 - [ ] 이벤트 생성 ([화면 정의서 참조](../docs/screens/02_EVENT_CREATION.md))
-- [ ] 이벤트 목록
-- [ ] 출석 체크
+- [ ] 이벤트 목록 (그리드 레이아웃)
+- [ ] 출석 체크 (터치 최적화)
 
 ---
 
@@ -621,10 +801,10 @@ if (import.meta.env.DEV) {
 
 ---
 
-**문서 버전**: 1.1  
+**문서 버전**: 1.3  
 **최종 업데이트**: 2025-10-20  
 **작성자**: Frontend Development Team  
-**변경 사항**: 확정되지 않은 기술 스택 제거, 일반적인 패턴 중심으로 재작성
+**변경 사항**: Tailwind CSS v3.4.18 설치 완료, 모든 설정 파일 구성 완료
 
 **관련 문서**: [프로젝트 CLAUDE.md](../CLAUDE.md) | [문서 허브](../docs/CLAUDE.md)
 
