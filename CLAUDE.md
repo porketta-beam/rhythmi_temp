@@ -34,13 +34,13 @@
 - **라우팅**: (미정)
 - **폼 관리**: (미정)
 
-#### 백엔드 (예정)
-- **런타임**: Node.js
-- **프레임워크**: Express / Nest.js
-- **언어**: JavaScript / TypeScript
-- **데이터베이스**: PostgreSQL
-- **캐시**: Redis
-- **실시간**: WebSocket (Socket.io)
+#### 백엔드
+- **런타임**: Python 3.9+
+- **프레임워크**: FastAPI
+- **언어**: Python
+- **데이터베이스**: PostgreSQL (예정)
+- **ORM**: SQLAlchemy (예정)
+- **실시간**: WebSocket (예정)
 
 #### 인프라 (예정)
 - **호스팅**: Vercel (프론트) + AWS/GCP (백엔드)
@@ -84,6 +84,14 @@ eventManager/
 │   ├── product/           # 제품 문서 (PRD)
 │   ├── design/            # 디자인 문서 (플로우)
 │   └── screens/           # 화면 정의서
+│
+├── server/                # ✅ 백엔드 서버
+│   ├── CLAUDE.md          # 폼 데이터 관리 가이드
+│   ├── main.py            # FastAPI 진입점
+│   ├── db/                # 데이터베이스 연동
+│   │   ├── __init__.py
+│   │   └── connection.py
+│   └── service/           # (예정) 비즈니스 로직
 │
 └── front/                 # ✅ 프론트엔드 애플리케이션
     ├── package.json       # 의존성 및 스크립트
@@ -133,6 +141,22 @@ npm run lint
 
 # 의존성 설치 (처음 한 번)
 npm install
+```
+
+### 백엔드 (server/)
+
+```bash
+# server 디렉토리로 이동
+cd server
+
+# 개발 서버 실행 (http://localhost:8000)
+python main.py
+
+# 의존성 설치 (처음 한 번)
+poetry install
+
+# 가상환경 활성화
+poetry shell
 ```
 
 ### 테스트 (예정)
@@ -218,6 +242,10 @@ chore: 빌드 설정 변경
 ### 디자인 문서
 - [사용자 플로우](./docs/design/USER_FLOWS.md)
 - [데이터 플로우](./docs/design/DATA_FLOWS.md)
+- [폼 데이터 스펙](./docs/design/FORM_DATA.md)
+
+### 백엔드 가이드
+- [폼 데이터 관리 가이드](./server/CLAUDE.md)
 
 ### 화면 정의서
 - [화면 정의서 인덱스](./docs/screens/README.md)
@@ -289,7 +317,10 @@ chore: 빌드 설정 변경
 
 ---
 
-**문서 버전**: 1.4
-**최종 업데이트**: 2025-10-20
+**문서 버전**: 1.5
+**최종 업데이트**: 2025-10-21
 **작성자**: Product & Development Team
-**변경 사항**: Tailwind CSS v3 설치 완료, 설정 파일 구성 완료
+**변경 사항**: 
+- 백엔드 기술 스택 Python + FastAPI로 변경
+- server/CLAUDE.md 추가 (폼 데이터 관리 가이드)
+- 프로젝트 구조에 server 디렉토리 추가

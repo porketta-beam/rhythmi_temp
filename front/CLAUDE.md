@@ -675,6 +675,458 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 
 ---
 
+## 📋 폼 데이터 관리
+
+### 폼 데이터 스펙
+
+eventManager는 JSON 기반 동적 폼 시스템을 사용합니다. 자세한 내용은 [폼 데이터 스펙](../docs/design/FORM_DATA.md)을 참조하세요.
+
+**핵심 개념:**
+- **선언적 구조**: JSON으로 폼 필드 정의
+- **버전 관리**: `form_version`으로 수정 추적
+- **호환성 보장**: 기존 응답과 새로운 폼 구조 호환
+
+### 응답 검증 로직
+
+```javascript
+/**
+ * 폼 응답을 검증합니다
+ * @param {Object} formData - 폼 정의 데이터
+ * @param {Object} responses - 응답 데이터
+ * @returns {{valid: boolean, errors: Object}} - 검증 결과
+ */
+function validateResponse(formData, responses) {
+  const errors = {}
+  
+  for (const field of formData.fields) {
+    const value = responses[field.id]
+    
+    // 필수 필드 검증
+    if (field.required && (!value || value === '')) {
+      errors[field.id] = `${field.label}은(는) 필수입니다`
+      continue
+    }
+    
+    // 타입별 검증
+    switch (field.type) {
+      case 'text':
+      case 'long_text':
+        if (value) {
+          if (field.validation?.minLength && value.length < field.validation.minLength) {
+            errors[field.id] = `최소 ${field.validation.minLength}자 이상 입력해주세요`
+          }
+          if (field.validation?.maxLength && value.length > field.validation.maxLength) {
+            errors[field.id] = `최대 ${field.validation.maxLength}자까지 입력 가능합니다`
+          }
+          if (field.validation?.pattern && !new RegExp(field.validation.pattern).test(value)) {
+            errors[field.id] = field.validation.customMessage || '올바른 형식이 아닙니다'
+          }
+        }
+        break
+        
+      case 'number':
+        if (value != null) {
+          if (field.validation?.min && value < field.validation.min) {
+            errors[field.id] = `${field.validation.min} 이상의 값을 입력해주세요`
+          }
+          if (field.validation?.max && value > field.validation.max) {
+            errors[field.id] = `${field.validation.max} 이하의 값을 입력해주세요`
+          }
+        }
+        break
+        
+      case 'multiple_choice':
+        if (value && !field.options?.includes(value)) {
+          errors[field.id] = '유효하지 않은 선택입니다'
+        }
+        break
+        
+      case 'checkbox':
+        if (value && (!Array.isArray(value) || value.length === 0)) {
+          errors[field.id] = '최소 1개 이상 선택해주세요'
+        }
+        break
+        
+      case 'email':
+        if (value && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)) {
+          errors[field.id] = '올바른 이메일 형식이 아닙니다'
+        }
+        break
+    }
+  }
+  
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors
+  }
+}
+```
+
+### 폼 렌더링 (동적 폼)
+
+```jsx
+import { useState } from 'react'
+
+/**
+ * 동적 폼 렌더러 컴포넌트
+ * 폼 JSON 데이터를 받아서 자동으로 폼을 렌더링합니다
+ */
+function FormRenderer({ formData, onSubmit }) {
+  const [responses, setResponses] = useState({})
+  const [errors, setErrors] = useState({})
+  
+  const handleFieldChange = (fieldId, value) => {
+    setResponses(prev => ({
+      ...prev,
+      [fieldId]: value
+    }))
+  }
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    // 검증
+    const validation = validateResponse(formData, responses)
+    if (!validation.valid) {
+      setErrors(validation.errors)
+      return
+    }
+    
+    // 제출
+    await onSubmit({
+      form_id: formData.form_id,
+      responses,
+      form_version: formData.metadata.form_version
+    })
+  }
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{formData.title}</h1>
+        {formData.description && (
+          <p className="text-gray-600 mt-2">{formData.description}</p>
+        )}
+      </div>
+      
+      {formData.fields
+        .sort((a, b) => a.order - b.order)
+        .map(field => (
+          <FieldRenderer
+            key={field.id}
+            field={field}
+            value={responses[field.id]}
+            error={errors[field.id]}
+            onChange={(value) => handleFieldChange(field.id, value)}
+          />
+        ))}
+      
+      <button 
+        type="submit" 
+        className="btn-primary w-full min-h-[44px]"
+      >
+        제출
+      </button>
+    </form>
+  )
+}
+
+export default FormRenderer
+```
+
+### 필드별 렌더러
+
+```jsx
+/**
+ * 필드 타입에 따라 적절한 입력 컴포넌트를 렌더링합니다
+ */
+function FieldRenderer({ field, value, error, onChange }) {
+  switch (field.type) {
+    case 'text':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'long_text':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <textarea
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            rows={4}
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'yes_no':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => onChange('예')}
+              className={`flex-1 min-h-[44px] px-4 py-2 rounded-lg border transition-colors ${
+                value === '예' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300'
+              }`}
+            >
+              예
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange('아니오')}
+              className={`flex-1 min-h-[44px] px-4 py-2 rounded-lg border transition-colors ${
+                value === '아니오' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300'
+              }`}
+            >
+              아니오
+            </button>
+          </div>
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'multiple_choice':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <div className="space-y-2">
+            {field.options?.map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onChange(option)}
+                className={`w-full min-h-[44px] px-4 py-2 rounded-lg border text-left transition-colors ${
+                  value === option ? 'bg-blue-50 border-blue-500' : 'border-gray-300'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'checkbox':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <div className="space-y-2">
+            {field.options?.map(option => (
+              <label key={option} className="flex items-center min-h-[44px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={value?.includes(option) || false}
+                  onChange={(e) => {
+                    const newValue = e.target.checked
+                      ? [...(value || []), option]
+                      : (value || []).filter(v => v !== option)
+                    onChange(newValue)
+                  }}
+                  className="w-5 h-5 mr-3"
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+          </div>
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'number':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <input
+            type="number"
+            value={value || ''}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+            min={field.validation?.min}
+            max={field.validation?.max}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'date':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <input
+            type="date"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'email':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <input
+            type="email"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    case 'phone':
+      return (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <input
+            type="tel"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="010-XXXX-XXXX"
+            className={`w-full px-4 py-2 border rounded-lg ${
+              error ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required={field.required}
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+      )
+    
+    default:
+      return <div className="text-red-500">Unsupported field type: {field.type}</div>
+  }
+}
+
+export { FieldRenderer }
+```
+
+### 응답 제출 로직
+
+```javascript
+/**
+ * 폼 응답을 서버에 제출합니다
+ * @param {string} shareUrl - 폼 공유 URL
+ * @param {string} memberId - 회원 ID
+ * @param {Object} responses - 응답 데이터
+ */
+async function submitFormResponse(shareUrl, memberId, responses) {
+  try {
+    const response = await fetch(`/api/forms/${shareUrl}/responses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        member_id: memberId,
+        responses
+      })
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || '응답 제출에 실패했습니다')
+    }
+    
+    return await response.json()
+  } catch (error) {
+    console.error('응답 제출 오류:', error)
+    throw error
+  }
+}
+
+// 사용 예시
+function SurveyPage() {
+  const [formData, setFormData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  
+  useEffect(() => {
+    async function loadForm() {
+      const shareUrl = window.location.pathname.split('/').pop()
+      const response = await fetch(`/api/forms/${shareUrl}`)
+      const data = await response.json()
+      setFormData(data.form)
+      setLoading(false)
+    }
+    loadForm()
+  }, [])
+  
+  const handleSubmit = async (submitData) => {
+    try {
+      const shareUrl = window.location.pathname.split('/').pop()
+      await submitFormResponse(shareUrl, submitData.member_id, submitData.responses)
+      alert('응답이 성공적으로 제출되었습니다!')
+    } catch (error) {
+      alert(error.message)
+    }
+  }
+  
+  if (loading) return <div>로딩 중...</div>
+  if (!formData) return <div>폼을 찾을 수 없습니다</div>
+  
+  return <FormRenderer formData={formData} onSubmit={handleSubmit} />
+}
+```
+
+---
+
 ## 📚 참고 문서
 
 ### 프로젝트 문서
@@ -801,10 +1253,12 @@ if (import.meta.env.DEV) {
 
 ---
 
-**문서 버전**: 1.3  
-**최종 업데이트**: 2025-10-20  
+**문서 버전**: 1.4  
+**최종 업데이트**: 2025-10-21  
 **작성자**: Frontend Development Team  
-**변경 사항**: Tailwind CSS v3.4.18 설치 완료, 모든 설정 파일 구성 완료
+**변경 사항**: 
+- 폼 데이터 관리 섹션 추가 (응답 검증, 동적 렌더링, 필드별 렌더러)
+- 응답 제출 로직 및 사용 예시 추가
 
 **관련 문서**: [프로젝트 CLAUDE.md](../CLAUDE.md) | [문서 허브](../docs/CLAUDE.md)
 
