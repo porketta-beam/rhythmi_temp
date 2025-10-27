@@ -12,8 +12,8 @@ from sqlalchemy.pool import StaticPool
 from contextlib import contextmanager
 from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+# Load environment variables from .env (프로젝트 루트의 .env 파일)
+load_dotenv("../.env")  # server/db 디렉토리에서 상위로 올라가서 .env 찾기
 
 
 class DatabaseConnection:
@@ -38,8 +38,8 @@ class DatabaseConnection:
         if not database_url:
             database_url = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
         
-        # 개발용으로 SQLite 사용 (Supabase 연결 문제 해결 후 PostgreSQL로 변경)
-        use_sqlite = os.getenv("USE_SQLITE", "true").lower() == "true"
+        # 개발용으로 SQLite 사용 (USE_SQLITE=false일 때 PostgreSQL 사용)
+        use_sqlite = os.getenv("USE_SQLITE", "false").lower() == "true"
         
         if use_sqlite:
             database_url = "sqlite:///./eventmanager.db"
