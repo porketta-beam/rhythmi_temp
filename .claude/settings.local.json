@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(for file in front/src/app/test/2/consent/page.js front/src/app/test/2/questions/page.js front/src/app/test/2/result/page.js)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
