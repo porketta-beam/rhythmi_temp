@@ -17,22 +17,17 @@ export default function Design2() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="flex gap-4">
-              <span className="text-6xl">✨</span>
-              <span className="text-6xl">🌟</span>
-              <span className="text-6xl">💫</span>
-            </div>
           </div>
 
           {/* 메인 카피 */}
           <div className="flex flex-col gap-10">
             <h1 className="text-9xl font-bold text-orange-900 leading-tight">
               반가워요!<br />
-              <span className="text-orange-600">당신의 피부</span>를<br />
+              <span className="text-orange-600">당신의 피부리듬</span>을<br />
               알아가볼까요?
             </h1>
             <p className="text-5xl text-orange-700 font-semibold leading-relaxed bg-white/60 px-12 py-8 rounded-3xl backdrop-blur-sm inline-block">
-              10분이면 충분해요<br />
+              3분이면 충분해요<br />
               <span className="text-4xl text-orange-600">맞춤 케어를 찾아드려요</span>
             </p>
           </div>
@@ -46,10 +41,6 @@ export default function Design2() {
               <span>시작할게요</span>
               <span className="text-6xl">→</span>
             </Link>
-            <div className="flex items-center gap-6 bg-white/70 px-12 py-6 rounded-full backdrop-blur-sm w-fit">
-              <span className="text-4xl">⏱️</span>
-              <p className="text-orange-700 text-3xl font-semibold">약 10분 소요</p>
-            </div>
           </div>
         </div>
 

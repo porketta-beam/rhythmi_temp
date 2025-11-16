@@ -83,13 +83,6 @@ function QuestionContent() {
               </button>
             ))}
           </div>
-
-          {/* 안내 문구 */}
-          <div className="bg-white/70 px-12 py-6 rounded-full backdrop-blur-sm inline-block">
-            <p className="text-3xl text-orange-700 font-semibold">
-              💡 답변을 선택하면 자동으로 넘어가요!
-            </p>
-          </div>
         </div>
 
         {/* 우측: 진행도와 카테고리 정보 */}
@@ -101,7 +94,7 @@ function QuestionContent() {
                 cx="250"
                 cy="250"
                 r="220"
-                stroke="#fed7aa"
+                stroke="#fdfdfd"
                 strokeWidth="40"
                 fill="none"
                 className="opacity-30"
@@ -147,12 +140,10 @@ function QuestionContent() {
               </h3>
             </div>
             <p className="text-3xl text-orange-700 leading-relaxed">
-              {question.category === "건조도" && "피부의 수분 상태를 확인하고 있어요"}
-              {question.category === "유분도" && "피부의 유분 상태를 확인하고 있어요"}
-              {question.category === "민감도" && "피부의 민감성을 확인하고 있어요"}
-              {question.category === "실내외" && "주로 활동하는 환경을 확인하고 있어요"}
-              {question.category === "활동성" && "생활 패턴을 확인하고 있어요"}
-              {question.category === "케어_스타일" && "선호하는 케어 방식을 확인하고 있어요"}
+              {question.category === "skin" && "피부의 상태와 특성을 확인하고 있어요"}
+              {question.category === "environment" && "환경에 대한 피부 반응을 확인하고 있어요"}
+              {question.category === "lifestyle" && "생활 패턴과 활동 환경을 확인하고 있어요"}
+              {question.category === "care" && "선호하는 케어 방식을 확인하고 있어요"}
             </p>
           </div>
         </div>
