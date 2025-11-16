@@ -23,10 +23,10 @@ export function SurveyProvider({ children }) {
   }, []);
 
   // 답변 저장
-  const setAnswer = (questionId, answerId) => {
+  const setAnswer = (questionOrdinal, answerId) => {
     const newAnswers = {
       ...answers,
-      [`q${questionId}`]: answerId
+      [`q${questionOrdinal}`]: answerId
     };
     setAnswers(newAnswers);
 
@@ -50,7 +50,7 @@ export function SurveyProvider({ children }) {
     }
   };
 
-  // 스코어 계산
+  // 스코어 계산 (질문 인덱스 기반으로 안전 처리)
   const calculateScores = () => {
     const calculatedScores = {
       dry: 0,
@@ -65,12 +65,13 @@ export function SurveyProvider({ children }) {
     };
 
     Object.entries(answers).forEach(([questionKey, answerId]) => {
-      const questionId = parseInt(questionKey.slice(1));
-      const question = questions.find(q => q.id === questionId);
+      const ordinal = parseInt(questionKey.slice(1), 10); // 1-based
+      const idx = ordinal - 1;
+      const question = questions[idx];
       if (!question) return;
 
-      const answer = question.options.find(opt => opt.id === answerId);
-      if (!answer) return;
+      const answer = question.options?.find(opt => opt.id === answerId);
+      if (!answer || !answer.scores) return; // 성별/연령대 등 점수 없는 문항 무시
 
       Object.entries(answer.scores).forEach(([key, value]) => {
         calculatedScores[key] += value;

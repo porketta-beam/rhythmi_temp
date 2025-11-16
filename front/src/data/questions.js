@@ -1,5 +1,26 @@
-// 질문 데이터 (10문항)
+// 질문 데이터 (12문항)
 export const questions = [
+  {
+    id: 100,
+    category: "demographic",
+    question: "성별을 선택해주세요",
+    options: [
+      { id: "gender_male", text: "남성" },
+      { id: "gender_female", text: "여성" },
+    ]
+  },
+  {
+    id: 101,
+    category: "demographic",
+    question: "연령대를 선택해주세요",
+    options: [
+      { id: "age_10s", text: "10대" },
+      { id: "age_20s", text: "20대" },
+      { id: "age_30s", text: "30대" },
+      { id: "age_40s", text: "40대" },
+      { id: "age_50p", text: "50대 이상" }
+    ]
+  },
   {
     id: 1,
     category: "skin",
