@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function Loading2() {
   const router = useRouter();
@@ -15,29 +16,82 @@ export default function Loading2() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-orange-50 flex items-center justify-center p-4 md:p-6 lg:p-8">
-      <div className="w-full max-w-[1080px] min-h-screen bg-gradient-to-b from-orange-50 via-yellow-50 to-orange-50 flex flex-col items-center justify-center gap-8 md:gap-10 lg:gap-12 relative overflow-hidden">
-        {/* 배경 장식 */}
-        <div className="absolute top-20 md:top-24 lg:top-28 xl:top-32 right-10 md:right-12 lg:right-14 xl:right-16 w-64 h-64 md:w-80 md:h-80 lg:w-88 lg:h-88 xl:w-96 xl:h-96 bg-orange-200/30 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 md:bottom-24 lg:bottom-28 xl:bottom-32 left-10 md:left-12 lg:left-14 xl:left-16 w-64 h-64 md:w-80 md:h-80 lg:w-88 lg:h-88 xl:w-96 xl:h-96 bg-yellow-200/30 rounded-full blur-3xl"></div>
+    <>
+        {/* 좌측: 로딩 애니메이션과 메시지 */}
+        <div className="flex flex-col justify-center items-center gap-20 z-10">
+          {/* 로고 */}
+          <div className="w-48 h-48 rounded-3xl flex items-center justify-center shadow-xl overflow-hidden">
+            <Image 
+              src="/rhythmi_logo.svg" 
+              alt="Rhythmi Logo" 
+              width={192} 
+              height={192}
+              className="w-full h-full object-contain"
+            />
+          </div>
 
-        {/* 로딩 애니메이션 */}
-        <div className="flex flex-col items-center gap-8 md:gap-10 lg:gap-12 z-10">
+          {/* 로딩 스피너 */}
           <div className="relative">
-            <div className="w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 border-6 md:border-7 lg:border-8 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl md:text-4xl lg:text-5xl">
+            <div className="w-80 h-80 border-[20px] border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px]">
               🤖
             </div>
           </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-orange-900 text-center leading-tight">
-            AI가 열심히<br />
-            분석하고 있어요! ✨
-          </h2>
-          <p className="text-xl md:text-xl lg:text-2xl text-orange-700 font-semibold">
-            잠시만 기다려주세요...
-          </p>
+
+          {/* 메시지 */}
+          <div className="flex flex-col items-center gap-8">
+            <h2 className="text-8xl font-bold text-orange-900 text-center leading-tight">
+              AI가 열심히<br />
+              분석하고 있어요! ✨
+            </h2>
+            <p className="text-4xl text-orange-700 font-semibold">
+              잠시만 기다려주세요...
+            </p>
+          </div>
         </div>
-      </div>
-    </div>
+
+        {/* 우측: 피부 타입 미리보기 */}
+        <div className="flex flex-col items-center justify-center gap-20 z-10">
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-16 shadow-2xl">
+            <div className="flex items-center gap-6 mb-12">
+              <span className="text-6xl">🔍</span>
+              <h3 className="text-5xl font-bold text-orange-900">
+                5가지 피부 타입 분석 중
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-10 shadow-lg">
+                <div className="text-7xl mb-4">🌸</div>
+                <p className="text-3xl font-bold text-orange-900">건조 민감형</p>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-3xl p-10 shadow-lg">
+                <div className="text-7xl mb-4">🏠</div>
+                <p className="text-3xl font-bold text-orange-900">건조 실내형</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-yellow-100 rounded-3xl p-10 shadow-lg">
+                <div className="text-7xl mb-4">🛡️</div>
+                <p className="text-3xl font-bold text-orange-900">민감 보호형</p>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-100 rounded-3xl p-10 shadow-lg">
+                <div className="text-7xl mb-4">⚡</div>
+                <p className="text-3xl font-bold text-orange-900">활동 밸런스형</p>
+              </div>
+            </div>
+
+            <div className="mt-8 bg-gradient-to-br from-orange-100 to-yellow-100 rounded-3xl p-10 shadow-lg">
+              <div className="text-7xl mb-4">✨</div>
+              <p className="text-3xl font-bold text-orange-900">미니멀 케어형</p>
+            </div>
+          </div>
+
+          <div className="bg-yellow-100 border-4 border-yellow-300 rounded-3xl p-12 shadow-xl max-w-2xl">
+            <p className="text-4xl text-orange-800 leading-relaxed text-center">
+              💡 회원님의 응답을 바탕으로<br />
+              <span className="font-bold">가장 적합한 피부 타입을 찾고 있어요!</span>
+            </p>
+          </div>
+        </div>
+    </>
   );
 }

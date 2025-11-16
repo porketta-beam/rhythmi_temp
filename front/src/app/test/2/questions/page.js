@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SurveyProvider, useSurvey } from "@/contexts/SurveyContext";
 import { questions } from "@/data/questions";
+import Image from "next/image";
 
 function QuestionContent() {
   const router = useRouter();
@@ -38,67 +38,42 @@ function QuestionContent() {
   };
 
   return (
-    <div className="min-h-screen bg-orange-50 flex items-center justify-center p-8">
-      <div className="w-full max-w-[1080px] min-h-screen bg-gradient-to-b from-orange-50 via-yellow-50 to-orange-50 flex flex-col items-center justify-between py-12 md:py-16 lg:py-20 xl:py-24 px-8 md:px-12 lg:px-14 xl:px-16 relative overflow-hidden">
-        {/* 배경 장식 */}
-        <div className="absolute top-32 right-16 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-32 left-16 w-96 h-96 bg-yellow-200/30 rounded-full blur-3xl"></div>
-
-        {/* 상단 버튼 영역 */}
-        <div className="absolute top-8 left-8 right-8 flex justify-between items-center z-10">
-          <Link
-            href="/list"
-            className="px-6 py-3 text-sm text-orange-700 hover:text-orange-900 transition-colors bg-white/50 rounded-full backdrop-blur-sm"
+    <>
+        {/* 이전 버튼 */}
+        {currentQuestion > 1 && (
+          <button
+            onClick={handlePrev}
+            className="absolute top-12 right-12 px-12 py-5 bg-white border-4 border-orange-300 text-orange-700 text-3xl font-semibold rounded-full hover:bg-orange-50 transition-all duration-200 shadow-lg"
           >
-            ← 목록으로
-          </Link>
-          {currentQuestion > 1 && (
-            <button
-              onClick={handlePrev}
-              className="px-8 py-4 bg-white border-2 border-orange-300 text-orange-700 text-lg font-semibold rounded-full hover:bg-orange-50 transition-all duration-200"
-            >
-              ← 이전
-            </button>
-          )}
-        </div>
+            ← 이전
+          </button>
+        )}
 
-        {/* 상단 로고 */}
-        <div className="flex flex-col items-center gap-4 mt-12 z-10">
-          <div className="w-28 h-28 bg-gradient-to-br from-orange-400 to-yellow-400 rounded-3xl flex items-center justify-center shadow-xl">
-            <span className="text-white text-2xl font-bold">LeadMe</span>
+        {/* 좌측: 질문과 선택지 */}
+        <div className="flex flex-col justify-center gap-16 z-10">
+          {/* 로고 */}
+          <div className="w-48 h-48 rounded-3xl flex items-center justify-center shadow-xl overflow-hidden">
+              <Image 
+                src="/rhythmi_logo.svg" 
+                alt="Rhythmi Logo" 
+                width={192} 
+                height={192}
+                className="w-full h-full object-contain"
+              />
           </div>
-        </div>
 
-        {/* 진행도 */}
-        <div className="w-full max-w-2xl z-10">
-          <div className="flex justify-between items-center mb-6">
-            <span className="text-orange-700 text-2xl font-bold">
-              {currentQuestion} / {totalQuestions} 🎯
-            </span>
-            <span className="text-orange-600 text-lg font-semibold bg-white/60 px-4 py-2 rounded-full backdrop-blur-sm">
-              {Math.round((currentQuestion / totalQuestions) * 100)}%
-            </span>
-          </div>
-          <div className="h-3 bg-white/60 rounded-full overflow-hidden backdrop-blur-sm">
-            <div
-              className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-300"
-              style={{ width: `${(currentQuestion / totalQuestions) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* 질문 영역 */}
-        <div className="flex flex-col items-center gap-10 w-full max-w-2xl z-10">
-          <h2 className="text-5xl font-bold text-orange-900 text-center leading-tight">
+          {/* 질문 */}
+          <h2 className="text-8xl font-bold text-orange-900 leading-tight">
             {question.question}
           </h2>
 
-          <div className="w-full space-y-4">
+          {/* 선택지 */}
+          <div className="space-y-6">
             {question.options.map((option) => (
               <button
                 key={option.id}
                 onClick={() => handleAnswer(option.id)}
-                className={`w-full p-8 text-left text-2xl rounded-3xl border-4 transition-all duration-200 font-semibold shadow-lg ${
+                className={`w-full h-32 text-left px-12 text-4xl rounded-3xl border-4 transition-all duration-200 font-semibold shadow-xl flex items-center ${
                   currentAnswer === option.id
                     ? "bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-orange-400 scale-105"
                     : "bg-white/90 text-orange-800 border-orange-200 hover:border-orange-400 hover:scale-102 backdrop-blur-sm"
@@ -108,16 +83,80 @@ function QuestionContent() {
               </button>
             ))}
           </div>
+
+          {/* 안내 문구 */}
+          <div className="bg-white/70 px-12 py-6 rounded-full backdrop-blur-sm inline-block">
+            <p className="text-3xl text-orange-700 font-semibold">
+              💡 답변을 선택하면 자동으로 넘어가요!
+            </p>
+          </div>
         </div>
 
-        {/* 안내 문구 */}
-        <div className="w-full max-w-2xl text-center z-10">
-          <p className="text-xl text-orange-700 font-semibold bg-white/60 px-6 py-4 rounded-full backdrop-blur-sm inline-block">
-            💡 답변을 선택하면 자동으로 넘어가요!
-          </p>
+        {/* 우측: 진행도와 카테고리 정보 */}
+        <div className="flex flex-col items-center justify-center gap-20 z-10">
+          {/* 진행도 원형 표시 */}
+          <div className="relative w-[500px] h-[500px]">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle
+                cx="250"
+                cy="250"
+                r="220"
+                stroke="#fed7aa"
+                strokeWidth="40"
+                fill="none"
+                className="opacity-30"
+              />
+              <circle
+                cx="250"
+                cy="250"
+                r="220"
+                stroke="url(#gradient)"
+                strokeWidth="40"
+                fill="none"
+                strokeDasharray={`${2 * Math.PI * 220}`}
+                strokeDashoffset={`${2 * Math.PI * 220 * (1 - currentQuestion / totalQuestions)}`}
+                strokeLinecap="round"
+                className="transition-all duration-300"
+              />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#f97316" />
+                  <stop offset="100%" stopColor="#eab308" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-9xl font-bold text-orange-900">
+                {currentQuestion}
+              </span>
+              <span className="text-5xl text-orange-600 font-semibold">
+                / {totalQuestions}
+              </span>
+              <span className="text-4xl text-orange-700 font-bold mt-4">
+                {Math.round((currentQuestion / totalQuestions) * 100)}%
+              </span>
+            </div>
+          </div>
+
+          {/* 카테고리 정보 */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 shadow-2xl max-w-xl">
+            <div className="flex items-center gap-6 mb-6">
+              <span className="text-6xl">🎯</span>
+              <h3 className="text-4xl font-bold text-orange-900">
+                피부 진단 중
+              </h3>
+            </div>
+            <p className="text-3xl text-orange-700 leading-relaxed">
+              {question.category === "건조도" && "피부의 수분 상태를 확인하고 있어요"}
+              {question.category === "유분도" && "피부의 유분 상태를 확인하고 있어요"}
+              {question.category === "민감도" && "피부의 민감성을 확인하고 있어요"}
+              {question.category === "실내외" && "주로 활동하는 환경을 확인하고 있어요"}
+              {question.category === "활동성" && "생활 패턴을 확인하고 있어요"}
+              {question.category === "케어_스타일" && "선호하는 케어 방식을 확인하고 있어요"}
+            </p>
+          </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
 
