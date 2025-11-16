@@ -52,13 +52,13 @@ function QuestionContent() {
         {/* 좌측: 질문과 선택지 */}
         <div className="flex flex-col justify-center gap-16 z-10">
           {/* 로고 */}
-          <div className="w-48 h-48 rounded-3xl flex items-center justify-center shadow-xl overflow-hidden">
+          <div className="w-48 h-48 rounded-3xl flex items-center justify-center">
               <Image 
                 src="/rhythmi_logo.svg" 
                 alt="Rhythmi Logo" 
                 width={192} 
                 height={192}
-                className="w-full h-full object-contain"
+                className="w-full h-full rounded-4xl shadow-xl object-contain"
               />
           </div>
 
@@ -122,12 +122,12 @@ function QuestionContent() {
               <span className="text-9xl font-bold text-orange-900">
                 {currentQuestion}
               </span>
-              <span className="text-5xl text-orange-600 font-semibold">
+              {/* <span className="text-5xl text-orange-600 font-semibold">
                 / {totalQuestions}
-              </span>
-              <span className="text-4xl text-orange-700 font-bold mt-4">
+              </span> */}
+              {/* <span className="text-4xl text-orange-700 font-bold mt-4">
                 {Math.round((currentQuestion / totalQuestions) * 100)}%
-              </span>
+              </span> */}
             </div>
           </div>
 
