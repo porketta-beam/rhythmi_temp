@@ -8,7 +8,7 @@ import { useEffect } from "react";
 
 function ResultContent() {
   const { result, calculateResult, reset } = useSurvey();
-
+  
   useEffect(() => {
     if (!result) {
       calculateResult();
@@ -34,27 +34,25 @@ function ResultContent() {
         {/* 좌측: 결과 타입과 이모지 */}
         <div className="flex flex-col justify-center items-center gap-20 z-10">
           {/* 로고 */}
-          <div className="w-48 h-48 rounded-3xl flex items-center justify-center shadow-xl overflow-hidden">
+          <div className="w-48 h-48 rounded-3xl flex items-center justify-center">
             <Image 
               src="/rhythmi_logo.svg" 
               alt="Rhythmi Logo" 
               width={192} 
               height={192}
-              className="w-full h-full object-contain"
+              className="w-full h-full rounded-4xl object-contain shadow-xl"
             />
           </div>
 
           {/* 결과 타입 */}
           <div className="flex flex-col items-center gap-10 text-center">
+            <p className="text-6xl text-orange-800 font-bold mb-4">
+              AI 분석결과 당신은...
+            </p>
             <div className="text-[200px] animate-bounce">{data.emoji}</div>
             <h1 className="text-9xl font-bold text-orange-900 leading-tight">
               {data.type}
             </h1>
-            <div className="flex gap-6">
-              <span className="text-7xl">✨</span>
-              <span className="text-7xl">💖</span>
-              <span className="text-7xl">✨</span>
-            </div>
             <p className="text-5xl text-orange-700 font-semibold bg-white/70 px-16 py-8 rounded-3xl backdrop-blur-sm leading-relaxed">
               {data.description}
             </p>
@@ -67,7 +65,7 @@ function ResultContent() {
             className="w-full max-w-2xl h-40 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-5xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 flex items-center justify-center gap-6"
           >
             <span>다시 시작하기</span>
-            <span className="text-6xl">🔄</span>
+            <span className="text-6xl">🔄</span> 
           </Link>
         </div>
 

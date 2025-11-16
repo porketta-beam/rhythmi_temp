@@ -18,23 +18,19 @@ export default function Loading2() {
   return (
     <>
         {/* 좌측: 로딩 애니메이션과 메시지 */}
-        <div className="flex flex-col justify-center items-center gap-20 z-10">
-          {/* 로고 */}
-          <div className="w-48 h-48 rounded-3xl flex items-center justify-center shadow-xl overflow-hidden">
-            <Image 
-              src="/rhythmi_logo.svg" 
-              alt="Rhythmi Logo" 
-              width={192} 
-              height={192}
-              className="w-full h-full object-contain"
-            />
-          </div>
+        <div className="col-span-2 flex flex-col justify-center items-center gap-20">
 
           {/* 로딩 스피너 */}
           <div className="relative">
             <div className="w-80 h-80 border-[20px] border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px]">
-              🤖
+              <Image 
+                src="/rhythmi_logo.svg" 
+                alt="Rhythmi Logo" 
+                width={192} 
+                height={192}
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
 
@@ -50,7 +46,7 @@ export default function Loading2() {
           </div>
         </div>
 
-        {/* 우측: 피부 타입 미리보기 */}
+        {/* 우측: 피부 타입 미리보기
         <div className="flex flex-col items-center justify-center gap-20 z-10">
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-16 shadow-2xl">
             <div className="flex items-center gap-6 mb-12">
@@ -91,7 +87,7 @@ export default function Loading2() {
               <span className="font-bold">가장 적합한 피부 타입을 찾고 있어요!</span>
             </p>
           </div>
-        </div>
+        </div> */}
     </>
   );
 }
