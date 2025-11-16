@@ -85,7 +85,7 @@ export default function Consent2() {
               거부할게요
             </Link>
             <Link
-              href="/test/2/questions"
+              href="/test/2/camera"
               className="flex-1 h-36 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-4xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95 flex items-center justify-center gap-4"
             >
               <span>동의해요</span>
