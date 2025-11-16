@@ -19,6 +19,35 @@
 - 이벤트 규모: 10-500명
 - 빈도: 연간 4-12회
 
+### 고객사 사례
+
+#### 🎨 Rythmi (리듬아이)
+**도메인**: 피부 진단 및 스킨케어 추천 서비스
+**활용 기능**: 설문 폼 + 회원 목록 관리
+**구현 상태**: ✅ 완료 (`front/src/app/test/2/`)
+**타겟 디바이스**: 태블릿 가로형 (Surface Pro 13인치, 2880×1920)
+
+**주요 기능**:
+- 10문항 피부 타입 진단 설문
+- 5가지 피부 타입 분류 (건조 민감형, 건조 실내형, 민감 보호형, 활동 밸런스형, 미니멀 케어형)
+- 맞춤형 스킨케어 루틴 추천
+- 개인정보 동의 플로우
+- sessionStorage 기반 응답 저장
+
+**eventManager 활용**:
+- **설문 폼 기능**: 10문항 다중 선택 설문
+- **스코어링 시스템**: 9개 차원 스코어 계산 (건조, 지성, 민감, 실내, 실외, 활동, 미니멀 등)
+- **결과 타입 분류**: 조건 기반 피부 타입 결정 로직
+- **오프라인 우선**: sessionStorage를 통한 로컬 저장
+
+**디자인 특성**:
+- 가로형 레이아웃 (Landscape)
+- 2열 구조 활용 (설문 + 정보)
+- 큰 터치 타겟 (태블릿 최적화)
+- 오렌지/노란색 그라데이션
+
+**참고 문서**: [`docs/clients/RYTHMI.md`](./docs/clients/RYTHMI.md)
+
 ---
 
 ## 🏗 아키텍처
@@ -26,13 +55,13 @@
 ### 기술 스택
 
 #### 프론트엔드 ✅
-- **프레임워크**: React 19 + Vite
+- **프레임워크**: Next.js 16 + React 19
 - **언어**: JavaScript (ES6+)
-- **스타일링**: Tailwind CSS ✅
-- **상태 관리**: (미정)
-- **오프라인**: (미정)
-- **라우팅**: (미정)
-- **폼 관리**: (미정)
+- **스타일링**: Tailwind CSS 4.0 ✅
+- **상태 관리**: Context API ✅
+- **오프라인**: sessionStorage (구현 완료)
+- **라우팅**: Next.js App Router ✅
+- **폼 관리**: Context API ✅
 
 #### 백엔드
 - **런타임**: Python 3.9+
@@ -93,23 +122,33 @@ eventManager/
 │   │   └── connection.py
 │   └── service/           # (예정) 비즈니스 로직
 │
-└── front/                 # ✅ 프론트엔드 애플리케이션
+└── front/                 # ✅ 프론트엔드 애플리케이션 (Next.js 16)
     ├── package.json       # 의존성 및 스크립트
-    ├── vite.config.js     # Vite 설정
     ├── eslint.config.js   # ESLint 설정
-    ├── index.html         # 진입점 HTML
     │
     ├── src/               # 소스 코드
-    │   ├── main.jsx       # 앱 진입점
-    │   ├── App.jsx        # 루트 컴포넌트
+    │   ├── app/           # Next.js App Router
+    │   │   ├── test/      # 고객사 구현 사례
+    │   │   │   └── 2/     # ✅ Rythmi (피부 진단 설문)
+    │   │   │       ├── page.js          # 시작 화면
+    │   │   │       ├── consent/         # 개인정보 동의
+    │   │   │       ├── questions/       # 설문 진행 (10문항)
+    │   │   │       ├── loading/         # 분석 로딩
+    │   │   │       └── result/          # 결과 및 추천
+    │   │   └── list/      # (예정) 메인 페이지
+    │   │
+    │   ├── contexts/      # ✅ React Context (상태 관리)
+    │   │   └── SurveyContext.js
+    │   │
+    │   ├── data/          # ✅ 정적 데이터
+    │   │   ├── questions.js      # 설문 문항 (10개)
+    │   │   └── resultData.js     # 결과 타입 (5개)
+    │   │
     │   ├── components/    # (예정) UI 컴포넌트
-    │   ├── pages/         # (예정) 페이지 컴포넌트
-    │   ├── stores/        # (예정) Zustand 스토어
     │   ├── hooks/         # (예정) 커스텀 훅
     │   ├── utils/         # (예정) 유틸리티 함수
     │   ├── api/           # (예정) API 클라이언트
-    │   ├── db/            # (예정) IndexedDB (Dexie)
-    │   └── assets/        # 정적 자산
+    │   └── db/            # (예정) IndexedDB (Dexie)
     │
     └── public/            # 공개 자산
 ```
@@ -177,15 +216,20 @@ npm run test:coverage
 - [x] 사용자 플로우 정의
 - [x] 데이터 플로우 설계
 - [x] 화면 정의서 (온보딩, 이벤트 생성)
-- [x] 기술 스택 결정 (React + Vite + JavaScript)
+- [x] 기술 스택 결정 (Next.js + React + JavaScript)
 - [x] 프론트엔드 프로젝트 초기 설정 (front/)
+- [x] Next.js 16 + Tailwind CSS 4.0 설정 완료 ✅
+- [x] MVP API 설계 (Events, Members, Forms, FormResponses)
+- [x] **Rythmi 고객사 설문 기능 구현 완료** ✅
+  - Context API 기반 상태 관리
+  - 10문항 설문 + 5가지 결과 타입
+  - sessionStorage 응답 저장
+  - 개인정보 동의 플로우
 
 ### 🔄 진행 중
-- [x] Tailwind CSS 설치 및 설정 완료 ✅
-- [x] Tailwind 설정 파일 구성 (tailwind.config.js, postcss.config.js) ✅
-- [x] src/index.css에 Tailwind 디렉티브 추가 ✅
-- [ ] 추가 라이브러리 결정 및 설치
-- [ ] 디렉토리 구조 세팅 (components, pages 등)
+- [ ] Rythmi 케이스 스터디 문서 작성
+- [ ] API 명세서 업데이트 (Rythmi 활용 사례 추가)
+- [ ] 디렉토리 구조 세팅 (범용 components, pages)
 - [ ] 화면 정의서 (출석 체크, 경품 추첨)
 
 ### 📝 예정
@@ -244,6 +288,12 @@ chore: 빌드 설정 변경
 - [데이터 플로우](./docs/design/DATA_FLOWS.md)
 - [폼 데이터 스펙](./docs/design/FORM_DATA.md)
 
+### API 문서
+- [MVP API 명세서](./docs/api/MVP_API_SPEC.md)
+
+### 고객사 문서
+- [Rythmi 케이스 스터디](./docs/clients/RYTHMI.md) (예정)
+
 ### 백엔드 가이드
 - [폼 데이터 관리 가이드](./server/CLAUDE.md)
 
@@ -299,28 +349,35 @@ chore: 빌드 설정 변경
 ## 📦 설치된 패키지
 
 ### 현재 설치됨
-- `react`: ^19.1.1
-- `react-dom`: ^19.1.1
-- `vite`: ^7.1.7
-- `eslint`: ^9.36.0
-- `tailwindcss`: ^3.4.18 (개발 의존성) ✅
-- `postcss`: ^8.5.6 (개발 의존성) ✅
-- `autoprefixer`: ^10.4.21 (개발 의존성) ✅
+- `next`: 16.0.1 ✅ (프레임워크)
+- `react`: 19.2.0 ✅
+- `react-dom`: 19.2.0 ✅
+- `tailwindcss`: ^4.0 ✅ (개발 의존성)
+- `@tailwindcss/postcss`: ^4.0 ✅ (개발 의존성)
+- `eslint`: ^9 ✅ (개발 의존성)
+- `eslint-config-next`: 16.0.1 ✅ (개발 의존성)
+
+### 구현 완료
+- **라우팅**: Next.js App Router ✅
+- **상태 관리**: Context API ✅
+- **오프라인 저장**: sessionStorage ✅
 
 ### 다음 설치 고려 중
-- 라우팅: `react-router-dom`, `@tanstack/router` 등
-- 상태 관리: `zustand`, `redux-toolkit`, Context API 등
-- 오프라인 DB: `dexie`, `localforage` 등
-- HTTP 클라이언트: `axios`, fetch API 등
-- 폼 관리: `react-hook-form`, `formik` 등
-- 유틸리티: `clsx`, `tailwind-merge`, `date-fns` 등
+- 오프라인 DB: `dexie`, `idb-keyval` (IndexedDB 래퍼)
+- HTTP 클라이언트: `axios`, fetch API
+- 폼 관리: `react-hook-form`, `zod` (유효성 검사)
+- 유틸리티: `clsx`, `tailwind-merge`, `date-fns`
+- 실시간 동기화: WebSocket 클라이언트
 
 ---
 
-**문서 버전**: 1.5
-**최종 업데이트**: 2025-10-21
+**문서 버전**: 1.6
+**최종 업데이트**: 2025-11-15
 **작성자**: Product & Development Team
-**변경 사항**: 
-- 백엔드 기술 스택 Python + FastAPI로 변경
-- server/CLAUDE.md 추가 (폼 데이터 관리 가이드)
-- 프로젝트 구조에 server 디렉토리 추가
+**변경 사항**:
+- **Rythmi 고객사 사례 추가** (피부 진단 설문 서비스)
+- 기술 스택 업데이트: Vite → Next.js 16
+- 프론트엔드 구조 업데이트 (App Router, Context API)
+- Rythmi 구현 완료 (front/src/app/test/2/)
+- 고객사 문서 섹션 추가
+- 현재 단계 업데이트 (Rythmi 완료 항목 추가)

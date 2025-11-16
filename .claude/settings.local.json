@@ -7,7 +7,17 @@
       "Bash(git checkout:*)",
       "Bash(for file in front/src/app/test/2/consent/page.js front/src/app/test/2/questions/page.js front/src/app/test/2/result/page.js)",
       "Bash(do echo \"=== $file ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__figma-desktop__get_design_context",
+      "mcp__figma-desktop__get_metadata",
+      "mcp__figma-desktop__get_screenshot",
+      "mcp__htmltodesign__import-url",
+      "mcp__htmltodesign__import-html",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_evaluate",
+      "mcp__notion__notion-fetch"
     ],
     "deny": [],
     "ask": []

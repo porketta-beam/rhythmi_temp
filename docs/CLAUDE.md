@@ -28,6 +28,9 @@ docs/
 ├── api/                   # API 문서
 │   └── MVP_API_SPEC.md   # MVP API 명세서
 │
+├── clients/               # 고객사 문서
+│   └── RYTHMI.md         # Rythmi 케이스 스터디 (예정)
+│
 └── screens/               # 화면 정의서
     ├── README.md         # 화면 정의서 인덱스
     ├── 01_ONBOARDING.md
@@ -115,7 +118,33 @@ docs/
 
 ---
 
-### 3. 디자인 문서 (design/)
+### 3. 고객사 문서 (clients/)
+
+#### Rythmi 케이스 스터디 (예정)
+📄 [`clients/RYTHMI.md`](./clients/RYTHMI.md)
+
+**내용**:
+- 고객사 프로필 (Rythmi - 피부 진단 서비스)
+- 활용 기능 (설문 폼 + 스코어링)
+- 구현 상세
+  - 10문항 피부 진단 설문
+  - 9개 차원 스코어 계산 로직
+  - 5가지 피부 타입 분류 알고리즘
+  - sessionStorage 기반 응답 저장
+- 디자인 시스템 (오렌지/노란색 그라데이션)
+- 페이지 플로우 (시작 → 동의 → 설문 → 로딩 → 결과)
+- eventManager API 활용 매핑
+- 성과 지표
+
+**사용 시기**:
+- 유사한 설문 기능 구현 시
+- 스코어링 로직 참고 시
+- 고객사 온보딩 가이드 작성 시
+- 플랫폼 활용 사례 제시 시
+
+---
+
+### 4. 디자인 문서 (design/)
 
 #### 사용자 플로우 (USER_FLOWS.md)
 📄 [`design/USER_FLOWS.md`](./design/USER_FLOWS.md)
@@ -181,7 +210,7 @@ docs/
 
 ---
 
-### 4. 화면 정의서 (screens/)
+### 5. 화면 정의서 (screens/)
 
 #### 화면 정의서 인덱스
 📄 [`screens/README.md`](./screens/README.md)
@@ -345,6 +374,9 @@ API 엔드포인트 및 데이터 구조
 | 설문 폼 구조 | [FORM_DATA.md](./design/FORM_DATA.md) |
 | 폼 응답 데이터 | [FORM_DATA.md](./design/FORM_DATA.md) - 응답 데이터 구조 |
 | 폼 버전 관리 | [FORM_DATA.md](./design/FORM_DATA.md) - 호환성 관리 |
+| Rythmi 구현 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
+| 설문 스코어링 | [RYTHMI.md](./clients/RYTHMI.md) - 스코어 계산 (예정) |
+| 고객사 활용 사례 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
 
 ---
 
@@ -396,6 +428,7 @@ API 엔드포인트 및 데이터 구조
 - [x] 화면 정의서: 이벤트 생성 (5개 화면)
 
 ### 진행 중 문서 🔄
+- [ ] **Rythmi 케이스 스터디** (clients/RYTHMI.md)
 - [ ] 화면 정의서: 대시보드
 - [ ] 화면 정의서: 출석 체크
 - [ ] 화면 정의서: 경품 추첨
@@ -406,24 +439,32 @@ API 엔드포인트 및 데이터 구조
 - [ ] 테스트 계획
 - [ ] 배포 가이드
 - [ ] API 인증 가이드
+- [ ] 추가 고객사 케이스 스터디
 
 ---
 
 ## 💻 개발 진행 현황
 
 ### 완료된 개발 ✅
-- [x] 기술 스택 결정 (React + Vite + JavaScript)
+- [x] 기술 스택 결정 (Next.js + React + JavaScript)
 - [x] 프론트엔드 프로젝트 초기화 (`front/` 디렉토리)
-- [x] React 19 + Vite 설정
+- [x] Next.js 16 + React 19 설정
 - [x] ESLint 설정
-- [x] Tailwind CSS v3 설치 및 설정 완료
-- [x] tailwind.config.js, postcss.config.js 구성
-- [x] 커스텀 브랜드 컬러 및 터치 타겟 설정
+- [x] Tailwind CSS v4 설치 및 설정 완료
+- [x] Next.js App Router 구조 세팅
+- [x] Context API 상태 관리 구현
+- [x] **Rythmi 고객사 설문 기능 구현 완료** ✅
+  - 10문항 피부 진단 설문
+  - 9개 차원 스코어 계산
+  - 5가지 피부 타입 분류
+  - 개인정보 동의 플로우
+  - sessionStorage 응답 저장
+  - 오렌지/노란색 그라데이션 디자인
 
 ### 진행 중 개발 🔄
-- [ ] Tailwind를 사용한 첫 컴포넌트 개발
-- [ ] 추가 라이브러리 결정 (라우팅, 상태 관리 등)
-- [ ] 디렉토리 구조 세팅
+- [ ] Rythmi 케이스 스터디 문서 작성
+- [ ] Rythmi 백엔드 API 연동 (선택)
+- [ ] 범용 컴포넌트 라이브러리 개발
 - [ ] 디자인 시스템 구축
 
 ### 예정된 개발 📝
@@ -435,11 +476,15 @@ API 엔드포인트 및 데이터 구조
 
 ---
 
-**문서 버전**: 1.5
-**최종 업데이트**: 2025-10-21
+**문서 버전**: 1.6
+**최종 업데이트**: 2025-11-15
 **관리자**: Documentation Team
-**변경 사항**: 
-- FORM_DATA.md 추가 (폼 데이터 구조, 버전 관리, 호환성 처리)
-- DB_SCHEMA_SPEC.md에 forms/form_responses 테이블 정의 추가
+**변경 사항**:
+- **clients/ 디렉토리 추가** - 고객사 케이스 스터디
+- **Rythmi 고객사 섹션 추가** (3. 고객사 문서)
+- 기술 스택 업데이트 (Vite → Next.js 16)
+- Rythmi 구현 완료 항목 추가 (개발 진행 현황)
+- 빠른 검색에 Rythmi 관련 항목 추가
+- 진행 중 문서에 Rythmi 케이스 스터디 추가
 
 **관련 문서**: [프로젝트 CLAUDE.md](../CLAUDE.md)
