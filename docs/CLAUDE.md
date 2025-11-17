@@ -21,7 +21,15 @@ docs/
 ├── design/                # 디자인 문서
 │   ├── USER_FLOWS.md     # 사용자 플로우
 │   ├── DATA_FLOWS.md     # 데이터 플로우
+│   ├── DB_SCHEMA_SPEC.md # DB 스키마 명세
+│   ├── FORM_DATA.md      # 폼 데이터 스펙
 │   └── DESIGN_SYSTEM.md  # 디자인 시스템 (예정)
+│
+├── api/                   # API 문서
+│   └── MVP_API_SPEC.md   # MVP API 명세서
+│
+├── clients/               # 고객사 문서
+│   └── RYTHMI.md         # Rythmi 케이스 스터디 (예정)
 │
 └── screens/               # 화면 정의서
     ├── README.md         # 화면 정의서 인덱스
@@ -53,8 +61,9 @@ docs/
 
 #### 개발자 (백엔드)
 1. **프로젝트 컨텍스트**: [`../CLAUDE.md`](../CLAUDE.md) (루트)
-2. **데이터 플로우**: [`design/DATA_FLOWS.md`](./design/DATA_FLOWS.md)
-3. **제품 요구사항**: [`product/PRD_Korean.md`](./product/PRD_Korean.md)
+2. **API 명세서**: [`api/MVP_API_SPEC.md`](./api/MVP_API_SPEC.md)
+3. **데이터 플로우**: [`design/DATA_FLOWS.md`](./design/DATA_FLOWS.md)
+4. **제품 요구사항**: [`product/PRD_Korean.md`](./product/PRD_Korean.md)
 
 ---
 
@@ -84,7 +93,58 @@ docs/
 
 ---
 
-### 2. 디자인 문서 (design/)
+### 2. API 문서 (api/)
+
+#### MVP API 명세서
+📄 [`api/MVP_API_SPEC.md`](./api/MVP_API_SPEC.md)
+
+**내용**:
+- 데이터 모델 (Events, Members, Forms, FormResponses)
+- RESTful API 엔드포인트
+  - 이벤트 생성 및 관리
+  - 회원 목록 작성 (단일/일괄)
+  - 설문 폼 작성 및 관리
+  - 설문 링크 생성 및 공유
+  - 설문 응답 제출 및 통계
+- 보안 정책 (데이터 격리, 암호화)
+- 에러 처리 및 HTTP 상태 코드
+- 접근 권한 제어 (시간 기반)
+
+**사용 시기**:
+- 백엔드 API 개발 시
+- 프론트엔드 API 연동 시
+- 데이터베이스 스키마 설계 시
+- 보안 정책 구현 시
+
+---
+
+### 3. 고객사 문서 (clients/)
+
+#### Rythmi 케이스 스터디 (예정)
+📄 [`clients/RYTHMI.md`](./clients/RYTHMI.md)
+
+**내용**:
+- 고객사 프로필 (Rythmi - 피부 진단 서비스)
+- 활용 기능 (설문 폼 + 스코어링)
+- 구현 상세
+  - 10문항 피부 진단 설문
+  - 9개 차원 스코어 계산 로직
+  - 5가지 피부 타입 분류 알고리즘
+  - sessionStorage 기반 응답 저장
+- 디자인 시스템 (오렌지/노란색 그라데이션)
+- 페이지 플로우 (시작 → 동의 → 설문 → 로딩 → 결과)
+- eventManager API 활용 매핑
+- 성과 지표
+
+**사용 시기**:
+- 유사한 설문 기능 구현 시
+- 스코어링 로직 참고 시
+- 고객사 온보딩 가이드 작성 시
+- 플랫폼 활용 사례 제시 시
+
+---
+
+### 4. 디자인 문서 (design/)
 
 #### 사용자 플로우 (USER_FLOWS.md)
 📄 [`design/USER_FLOWS.md`](./design/USER_FLOWS.md)
@@ -128,9 +188,29 @@ docs/
 - 동기화 로직 구현 시
 - 성능 최적화 시
 
+#### 폼 데이터 스펙 (FORM_DATA.md)
+📄 [`design/FORM_DATA.md`](./design/FORM_DATA.md)
+
+**내용**:
+- 폼 기본 구조 및 필드 타입 정의
+- 응답 데이터 구조 (field_id 기반)
+- 폼 수정 및 버전 관리
+  - 기존 응답과의 호환성 보장
+  - 삭제/추가/수정 필드 추적
+- 검증 규칙 (클라이언트/서버)
+- 프론트엔드 렌더링 예시
+- 백엔드 저장 로직 예시
+
+**사용 시기**:
+- 설문 폼 기능 개발 시
+- 폼 JSON 구조 설계 시
+- 버전 관리 전략 구현 시
+- 프론트엔드 폼 렌더러 개발 시
+- 응답 검증 로직 구현 시
+
 ---
 
-### 3. 화면 정의서 (screens/)
+### 5. 화면 정의서 (screens/)
 
 #### 화면 정의서 인덱스
 📄 [`screens/README.md`](./screens/README.md)
@@ -287,9 +367,16 @@ API 엔드포인트 및 데이터 구조
 | 출석 체크 | [USER_FLOWS.md](./design/USER_FLOWS.md) - 플로우 2 |
 | 경품 추첨 | [USER_FLOWS.md](./design/USER_FLOWS.md) - 플로우 3 |
 | 데이터베이스 스키마 | [DATA_FLOWS.md](./design/DATA_FLOWS.md) - 핵심 엔티티 |
-| API 엔드포인트 | 각 화면 정의서의 "데이터" 섹션 |
+| API 명세서 | [MVP_API_SPEC.md](./api/MVP_API_SPEC.md) |
+| API 엔드포인트 | [MVP_API_SPEC.md](./api/MVP_API_SPEC.md) - 전체 API 목록 |
 | 실시간 동기화 | [DATA_FLOWS.md](./design/DATA_FLOWS.md) - 동기화 패턴 |
 | 오프라인 모드 | [DATA_FLOWS.md](./design/DATA_FLOWS.md) - 오프라인 우선 |
+| 설문 폼 구조 | [FORM_DATA.md](./design/FORM_DATA.md) |
+| 폼 응답 데이터 | [FORM_DATA.md](./design/FORM_DATA.md) - 응답 데이터 구조 |
+| 폼 버전 관리 | [FORM_DATA.md](./design/FORM_DATA.md) - 호환성 관리 |
+| Rythmi 구현 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
+| 설문 스코어링 | [RYTHMI.md](./clients/RYTHMI.md) - 스코어 계산 (예정) |
+| 고객사 활용 사례 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
 
 ---
 
@@ -302,10 +389,10 @@ API 엔드포인트 및 데이터 구조
 4. 인터랙션 섹션의 동작 정의 반영
 
 ### API 개발 시
-1. [`design/DATA_FLOWS.md`](./design/DATA_FLOWS.md)에서 엔티티 구조 확인
-2. 각 화면 정의서의 "데이터" 섹션에서 필요한 API 파악
-3. 실시간 동기화 요구사항 확인
-4. 에러 처리 시나리오 구현
+1. [`api/MVP_API_SPEC.md`](./api/MVP_API_SPEC.md)에서 전체 API 구조 확인
+2. [`design/DATA_FLOWS.md`](./design/DATA_FLOWS.md)에서 데이터 흐름 파악
+3. 보안 정책 및 접근 권한 제어 구현
+4. 에러 처리 및 검증 로직 구현
 
 ### 테스트 작성 시
 1. 화면 정의서의 "인터랙션" 섹션 참조
@@ -334,34 +421,50 @@ API 엔드포인트 및 데이터 구조
 - [x] PRD (영문/한글)
 - [x] 사용자 플로우
 - [x] 데이터 플로우
+- [x] DB 스키마 명세
+- [x] 폼 데이터 스펙 (FORM_DATA.md)
+- [x] MVP API 명세서
 - [x] 화면 정의서: 온보딩 (4개 화면)
 - [x] 화면 정의서: 이벤트 생성 (5개 화면)
 
 ### 진행 중 문서 🔄
+- [ ] **Rythmi 케이스 스터디** (clients/RYTHMI.md)
 - [ ] 화면 정의서: 대시보드
 - [ ] 화면 정의서: 출석 체크
 - [ ] 화면 정의서: 경품 추첨
 
 ### 예정된 문서 📝
 - [ ] 디자인 시스템
-- [ ] API 명세서
-- [ ] 데이터베이스 스키마 상세
+- [ ] 데이터베이스 스키마 상세 (마이그레이션 스크립트)
 - [ ] 테스트 계획
 - [ ] 배포 가이드
+- [ ] API 인증 가이드
+- [ ] 추가 고객사 케이스 스터디
 
 ---
 
 ## 💻 개발 진행 현황
 
 ### 완료된 개발 ✅
-- [x] 기술 스택 결정 (React + Vite + JavaScript)
+- [x] 기술 스택 결정 (Next.js + React + JavaScript)
 - [x] 프론트엔드 프로젝트 초기화 (`front/` 디렉토리)
-- [x] React 19 + Vite 설정
+- [x] Next.js 16 + React 19 설정
 - [x] ESLint 설정
+- [x] Tailwind CSS v4 설치 및 설정 완료
+- [x] Next.js App Router 구조 세팅
+- [x] Context API 상태 관리 구현
+- [x] **Rythmi 고객사 설문 기능 구현 완료** ✅
+  - 10문항 피부 진단 설문
+  - 9개 차원 스코어 계산
+  - 5가지 피부 타입 분류
+  - 개인정보 동의 플로우
+  - sessionStorage 응답 저장
+  - 오렌지/노란색 그라데이션 디자인
 
 ### 진행 중 개발 🔄
-- [ ] 추가 라이브러리 설치 (Tailwind, Zustand, React Router 등)
-- [ ] 디렉토리 구조 세팅
+- [ ] Rythmi 케이스 스터디 문서 작성
+- [ ] Rythmi 백엔드 API 연동 (선택)
+- [ ] 범용 컴포넌트 라이브러리 개발
 - [ ] 디자인 시스템 구축
 
 ### 예정된 개발 📝
@@ -373,9 +476,15 @@ API 엔드포인트 및 데이터 구조
 
 ---
 
-**문서 버전**: 1.1
-**최종 업데이트**: 2025-10-20
+**문서 버전**: 1.6
+**최종 업데이트**: 2025-11-15
 **관리자**: Documentation Team
-**변경 사항**: 프론트엔드 개발 진행 현황 추가
+**변경 사항**:
+- **clients/ 디렉토리 추가** - 고객사 케이스 스터디
+- **Rythmi 고객사 섹션 추가** (3. 고객사 문서)
+- 기술 스택 업데이트 (Vite → Next.js 16)
+- Rythmi 구현 완료 항목 추가 (개발 진행 현황)
+- 빠른 검색에 Rythmi 관련 항목 추가
+- 진행 중 문서에 Rythmi 케이스 스터디 추가
 
 **관련 문서**: [프로젝트 CLAUDE.md](../CLAUDE.md)
