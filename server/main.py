@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 import uvicorn
-from server.db.connection import get_engine
+from db.connection import get_engine
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import os
