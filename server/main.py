@@ -36,6 +36,11 @@ DEFAULT_DEPLOYMENT_ORIGINS = [
 allowed_origins = [FRONT_URL] + FRONT_URLS + DEFAULT_DEPLOYMENT_ORIGINS + ["http://127.0.0.1:3000", "http://localhost:3000"]
 # 중복 제거
 allowed_origins = list(dict.fromkeys(allowed_origins))
+
+# TODO(human): DEBUG 모드 체크하여 개발/프로덕션 환경별 CORS 설정 분기
+# 개발 환경(DEBUG=true): allow_origins=["*"]
+# 프로덕션 환경(DEBUG=false): allow_origins=allowed_origins
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

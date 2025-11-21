@@ -41,7 +41,10 @@
       "Bash(where:*)",
       "Bash(poetry env remove:*)",
       "Bash(poetry env use:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(poetry export:*)",
+      "Bash(requirements-vercel.txt)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
