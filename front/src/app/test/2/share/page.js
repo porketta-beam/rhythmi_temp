@@ -32,11 +32,10 @@ function ShareContent() {
 
     if (id) {
       setMemberId(id);
-      // 공유 URL 생성
-      const baseUrl = typeof window !== "undefined" 
-        ? window.location.origin 
-        : "https://event-manager-gax2.vercel.app";
-      const url = `${baseUrl}/test/2?memberId=${encodeURIComponent(id)}`;
+      // 공유 URL 생성 (환경 변수 사용)
+      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL
+        || (typeof window !== "undefined" ? window.location.origin : "");
+      const url = `${frontendUrl}/share?memberId=${encodeURIComponent(id)}`;
       setShareUrl(url);
     }
   }, [params]);

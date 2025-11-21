@@ -30,7 +30,18 @@
       "Bash(cat:*)",
       "Bash(npm run dev)",
       "Bash(curl:*)",
-      "Bash(poetry add:*)"
+      "Bash(poetry add:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep OPENAI_API_KEY .env)",
+      "Bash(else echo \".env file does not exist\")",
+      "Bash(fi)",
+      "Bash(poetry env info:*)",
+      "Bash(py:*)",
+      "Bash(python3.12:*)",
+      "Bash(where:*)",
+      "Bash(poetry env remove:*)",
+      "Bash(poetry env use:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

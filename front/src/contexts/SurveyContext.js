@@ -139,8 +139,19 @@ export function SurveyProvider({ children }) {
       // API URL 설정 (환경 변수 또는 기본값)
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-      // UUID 생성 (브라우저 표준 API)
-      const memberId = crypto.randomUUID();
+      // sessionStorage에서 memberId 가져오기 (consent 페이지에서 생성됨)
+      let memberId = null;
+      if (typeof window !== "undefined") {
+        memberId = sessionStorage.getItem("memberId");
+        if (!memberId) {
+          // Fallback: consent에서 생성되지 않은 경우
+          memberId = crypto.randomUUID();
+          sessionStorage.setItem("memberId", memberId);
+          console.warn("⚠️ [SurveyContext] memberId가 없어서 새로 생성:", memberId);
+        } else {
+          console.log("✅ [SurveyContext] 기존 memberId 사용:", memberId);
+        }
+      }
 
       // 서버 API 호출
       const response = await fetch(`${API_URL}/api/survey/analyze`, {

@@ -1,6 +1,25 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function Consent2() {
+  // memberId 초기 생성 및 저장 (설문 시작 시점)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let memberId = sessionStorage.getItem("memberId");
+      if (!memberId) {
+        memberId = (typeof crypto !== "undefined" && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `member_${Date.now()}`;
+        sessionStorage.setItem("memberId", memberId);
+        console.log("✅ [Consent] memberId 생성:", memberId);
+      } else {
+        console.log("✅ [Consent] 기존 memberId 사용:", memberId);
+      }
+    }
+  }, []);
+
   return (
     <div className="col-span-2 flex flex-col items-center justify-center z-10">
       {/* 동의 설명 */}
