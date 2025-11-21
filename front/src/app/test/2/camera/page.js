@@ -12,6 +12,8 @@ export default function Camera2() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [showButton, setShowButton] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
 
   // IndexedDB 초기화
   const initDB = () => {
@@ -93,6 +95,15 @@ export default function Camera2() {
     };
   }, []);
 
+  // 1초 후 버튼 표시
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowButton(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // 사진 촬영 및 저장
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current || isCapturing) {
@@ -106,29 +117,33 @@ export default function Camera2() {
     try {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      
+
       // 비디오 크기에 맞춰 캔버스 크기 설정
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
+
       // 비디오 프레임을 캔버스에 그리기
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
+      // 캡처된 이미지를 dataURL로 저장 (화면 표시용)
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      setCapturedImage(imageDataUrl);
+
       // Blob으로 변환
       canvas.toBlob(
         async (blob) => {
           if (!blob) {
             throw new Error("이미지 변환 실패");
           }
-          
+
           // IndexedDB에 저장
           await savePhotoToDB(blob);
-          
-          // 저장 완료 후 questions 페이지로 이동
+
+          // 저장 완료 후 최소 4초 후 questions 페이지로 이동
           setTimeout(() => {
             router.push("/test/2/questions");
-          }, 500);
+          }, 4000);
         },
         "image/jpeg",
         0.9
@@ -143,19 +158,19 @@ export default function Camera2() {
 
   if (error && !isLoading) {
     return (
-      <div className="col-span-2 flex flex-col justify-center items-center gap-12 z-10">
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-16 shadow-2xl border-2 border-orange-200 max-w-4xl">
-          <div className="flex flex-col items-center gap-8">
-            <span className="text-8xl">⚠️</span>
-            <h2 className="text-6xl font-bold text-orange-900 text-center">
+      <div className="col-span-2 flex flex-col justify-center items-center gap-8 z-10">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border-2 border-orange-200 max-w-3xl">
+          <div className="flex flex-col items-center gap-6">
+            <span className="text-6xl">⚠️</span>
+            <h2 className="text-4xl font-bold text-orange-900 text-center">
               오류가 발생했습니다
             </h2>
-            <p className="text-4xl text-orange-700 text-center leading-relaxed">
+            <p className="text-xl text-orange-700 text-center leading-relaxed">
               {error}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-8 px-16 py-6 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-4xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95"
+              className="mt-4 px-12 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-lg font-bold rounded-full shadow-lg hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95"
             >
               다시 시도
             </button>
@@ -165,11 +180,67 @@ export default function Camera2() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && capturedImage) {
     return (
-      <div className="col-span-2 flex flex-col justify-center items-center gap-20 z-10">
-        <div className="relative">
-          <div className="w-80 h-80 border-[20px] border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+      <div className="col-span-2 flex flex-col justify-center items-center gap-8 z-10">
+        {/* 캡처된 이미지 with 스캔 라인 애니메이션 */}
+        <div className="relative w-full max-w-[80%] aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black">
+          <img
+            src={capturedImage}
+            alt="Captured"
+            className="w-full h-full object-cover -scale-x-100"
+          />
+
+          {/* 스캔 라인 애니메이션 */}
+          <div className="absolute inset-0 overflow-hidden">
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                @keyframes scanLine {
+                  0% {
+                    top: 0%;
+                    opacity: 1;
+                  }
+                  48% {
+                    top: 100%;
+                    opacity: 1;
+                  }
+                  50% {
+                    top: 100%;
+                    opacity: 1;
+                  }
+                  98% {
+                    top: 0%;
+                    opacity: 1;
+                  }
+                  100% {
+                    top: 0%;
+                    opacity: 1;
+                  }
+                }
+                .scan-line {
+                  animation: scanLine 3s linear infinite;
+                }
+              `
+            }} />
+            <div
+              className="scan-line absolute left-0 right-0 h-1 bg-red-500"
+              style={{
+                boxShadow: '0 0 20px rgba(239, 68, 68, 0.8)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 분석 중 메시지 */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border-2 border-orange-200 max-w-2xl">
+          <div className="flex flex-col items-center gap-4">
+            <h2 className="text-3xl font-bold text-orange-900 text-center">
+              피부 분석 중...
+            </h2>
+            <p className="text-xl text-orange-700 text-center">
+              잠시만 기다려주세요
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -178,7 +249,7 @@ export default function Camera2() {
   return (
     <>
       {/* 비디오 및 가이드라인 */}
-      <div className="col-span-2 flex flex-col justify-center items-center gap-12 z-10">
+      <div className="col-span-2 flex flex-col justify-center items-center gap-8 z-10">
         {/* 카메라 화면 */}
         <div className="relative w-full max-w-[80%] aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black">
           <video
@@ -211,10 +282,12 @@ export default function Camera2() {
         <button
           onClick={handleCapture}
           disabled={isCapturing}
-          className="px-32 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-2xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95 flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`px-28 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-lg font-bold rounded-full shadow-lg hover:shadow-orange-300 hover:scale-105 transition-all duration-500 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${
+            showButton ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         >
           <span>다음으로</span>
-          <span className="text-3xl">→</span>
+          <span className="text-2xl">→</span>
         </button>
       </div>
 
