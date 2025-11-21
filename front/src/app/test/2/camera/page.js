@@ -186,7 +186,7 @@ export default function Camera2() {
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover -scale-x-100"
           />
           
           {/* 가이드라인 오버레이 */}
@@ -211,10 +211,10 @@ export default function Camera2() {
         <button
           onClick={handleCapture}
           disabled={isCapturing}
-          className="w-full max-w-2xl h-40 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-5xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95 flex items-center justify-center gap-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-32 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-2xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 active:scale-95 flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span>다음으로</span>
-          <span className="text-6xl">→</span>
+          <span className="text-3xl">→</span>
         </button>
       </div>
 

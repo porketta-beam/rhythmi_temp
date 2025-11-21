@@ -121,29 +121,29 @@ function Loading2Content() {
   return (
     <>
         {/* 좌측: 로딩 애니메이션과 메시지 */}
-        <div className="col-span-2 flex flex-col justify-center items-center gap-20">
+        <div className="col-span-2 flex flex-col justify-center items-center gap-10">
 
           {/* 로딩 스피너 */}
           <div className="relative">
-            <div className="w-80 h-80 border-[20px] border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px]">
-              <Image 
-                src="/rhythmi_logo.svg" 
-                alt="Rhythmi Logo" 
-                width={192} 
-                height={192}
+            <div className="w-40 h-40 border-[10px] border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[60px]">
+              <Image
+                src="/rhythmi_logo.svg"
+                alt="Rhythmi Logo"
+                width={96}
+                height={96}
                 className="w-full h-full object-contain"
               />
             </div>
           </div>
 
           {/* 메시지 */}
-          <div className="flex flex-col items-center gap-8">
-            <h2 className="text-8xl font-bold text-orange-900 text-center leading-tight">
+          <div className="flex flex-col items-center gap-4">
+            <h2 className="text-4xl font-bold text-orange-900 text-center leading-tight">
               AI가 열심히<br />
               분석하고 있어요! ✨
             </h2>
-            <p className="text-4xl text-orange-700 font-semibold">
+            <p className="text-xl text-orange-700 font-semibold">
               잠시만 기다려주세요...
             </p>
           </div>
