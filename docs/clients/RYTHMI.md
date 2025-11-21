@@ -256,6 +256,235 @@ front/src/data/
 
 ---
 
+## 📐 반응형 디자인 구현
+
+### 문제 상황
+
+**발견**: 배포 환경에서 다른 기기로 접속 시 모든 요소들이 의도보다 작게 표시되는 문제 발생
+
+**증상**:
+- Surface Pro 13인치에서 125% 확대 시에만 정상 크기로 보임
+- 고정 배율(125%)을 적용하면 다른 기기에서 적응하지 못함
+- 원형 프레임, 로고, 버튼 등 모든 UI 요소가 작게 표시
+
+**근본 원인**:
+```javascript
+// 문제가 있던 기존 코드
+<div className="w-[84vw] h-[84vw] max-w-[1080px]">  // 고정 픽셀 최대값
+<div className="top-[100px] w-[160px] h-[121px]">    // 고정 픽셀 크기
+```
+
+- **고정 픽셀 값 사용**: 모든 크기를 px 단위로 지정
+- **고해상도 소형 기기 문제**: Surface Pro는 2880×1920 해상도이지만 13인치 → 픽셀 밀도가 높아 같은 px 값이 물리적으로 더 작게 보임
+- **기기 다양성 미고려**: 태블릿, 모바일, 데스크탑 각각에 적절한 크기 제공 못함
+
+---
+
+### 해결 방법
+
+#### 1. 상대 단위로 전환
+
+**vmin 단위 사용**: viewport의 너비와 높이 중 작은 값의 백분율
+```javascript
+// vmin: 화면 크기에 비례하여 자동 조정
+// 85vmin = viewport 짧은 쪽의 85%
+w-[85vmin]  // 화면이 커지면 요소도 커짐
+```
+
+**vh 단위 사용**: viewport 높이의 백분율
+```javascript
+// vh: 세로 화면 높이에 비례
+pt-[20vh]  // 화면 높이의 20% 패딩
+```
+
+#### 2. 최소값 보장
+
+**max() 함수 사용**: 두 값 중 큰 값 선택
+```javascript
+// max(85vmin, 600px): 화면 비례 또는 최소 600px 중 큰 것
+w-[max(85vmin, 600px)]
+
+// 작은 화면: 600px 보장 (가독성 유지)
+// 큰 화면: 85vmin 사용 (화면에 맞게 커짐)
+```
+
+#### 3. 최대값 제한
+
+**max-w-[] 사용**: 과도한 확대 방지
+```javascript
+// 대형 모니터에서 너무 커지지 않도록
+max-w-[1200px]
+```
+
+#### 4. 범위 제한
+
+**clamp() 함수 사용**: 최소/이상/최대 범위 자동 조정
+```javascript
+// clamp(min, ideal, max)
+w-[clamp(120px, 12vmin, 180px)]
+
+// 작은 화면: 120px (최소값)
+// 중간 화면: 12vmin (화면 비례)
+// 큰 화면: 180px (최대값)
+```
+
+---
+
+### 구현 상세
+
+#### layout.js 반응형 코드
+
+**파일 위치**: `front/src/app/test/2/layout.js`
+
+##### 원형 프레임 (1.5배 확대 적용)
+
+```javascript
+{/* 중앙 원형 프레임 (배경 장식) - 1.5배 확대 */}
+<div className="absolute top-[max(2vh,20px)] left-1/2 -translate-x-1/2
+                w-[max(128vmin,900px)] h-[max(128vmin,900px)]
+                max-w-[1800px] max-h-[1800px]
+                rounded-full border-[3px] border-white/40 z-5">
+</div>
+```
+
+**변경 과정**:
+1. 초기: `w-[84vw] h-[84vw] max-w-[1080px]` (고정 픽셀)
+2. 반응형 적용: `w-[max(85vmin,600px)] max-w-[1200px]`
+3. 1.5배 확대: `w-[max(128vmin,900px)] max-w-[1800px]`
+   - `85vmin × 1.5 = 127.5vmin ≈ 128vmin`
+   - `600px × 1.5 = 900px`
+   - `1200px × 1.5 = 1800px`
+
+##### 상단 로고
+
+```javascript
+{/* 상단 로고 (가로 중앙) - 반응형 */}
+<div className="absolute top-[max(8vh,80px)] left-1/2 -translate-x-1/2
+                w-[clamp(120px,12vmin,180px)] h-[clamp(91px,9vmin,136px)] z-10">
+  <Image src="/rhythmi_logo_2_white.svg" alt="Rhythmi Logo"
+         width={160} height={121}
+         className="w-full h-full object-contain" />
+</div>
+```
+
+**변경 과정**:
+- 초기: `top-[100px] w-[160px] h-[121px]` (고정)
+- 최종: `top-[max(8vh,80px)] w-[clamp(120px,12vmin,180px)]`
+
+##### 하단 로고
+
+```javascript
+{/* 하단 작은 로고 (가로 중앙) - 반응형 */}
+<div className="absolute bottom-[max(6vh,50px)] left-1/2 -translate-x-1/2
+                w-[clamp(70px,8vmin,100px)] h-[clamp(70px,8vmin,100px)] z-10">
+  <Image src="/rhythmi_logo_1_white.svg" alt="Rhythmi Icon"
+         width={80} height={80}
+         className="w-full h-full object-contain" />
+</div>
+```
+
+**변경 과정**:
+- 초기: `bottom-[60px] w-[80px] h-[80px]` (고정)
+- 최종: `bottom-[max(6vh,50px)] w-[clamp(70px,8vmin,100px)]`
+
+##### 콘텐츠 패딩
+
+```javascript
+<div className="w-full h-full grid grid-cols-2 gap-8 px-8
+                pt-[max(20vh,200px)] pb-[max(15vh,140px)]
+                relative z-20 overflow-hidden max-w-4xl mx-auto">
+  {children}
+</div>
+```
+
+**변경 과정**:
+- 초기: `pt-[240px] pb-[160px]` (고정)
+- 최종: `pt-[max(20vh,200px)] pb-[max(15vh,140px)]`
+
+---
+
+### 기기별 동작 원리
+
+#### Surface Pro 13인치 (2880×1920)
+
+**원형 프레임**:
+```javascript
+128vmin = 128% × min(2880px, 1920px) = 128% × 1920px = 2457px
+하지만 max-w-[1800px]로 제한 → 최종 1800px 사용
+```
+→ 화면을 거의 가득 채우는 큰 원 (의도된 배경 장식 효과)
+
+**상단 로고**:
+```javascript
+clamp(120px, 12vmin, 180px)
+12vmin = 12% × 1920px = 230px → 최대값 180px로 제한
+→ 최종 180px 사용
+```
+→ 큰 화면에서 과도하게 커지지 않음
+
+#### iPad (1024×768)
+
+**원형 프레임**:
+```javascript
+128vmin = 128% × 768px = 983px
+max(128vmin, 900px) = max(983px, 900px) = 983px
+```
+→ 최소값보다 크므로 화면 비례 값 사용
+
+**상단 로고**:
+```javascript
+12vmin = 12% × 768px = 92px
+clamp(120px, 92px, 180px) → 최소값 120px 사용
+```
+→ 작은 화면에서도 읽기 가능한 크기 보장
+
+#### 모바일 (375×667)
+
+**원형 프레임**:
+```javascript
+128vmin = 128% × 375px = 480px
+max(128vmin, 900px) = max(480px, 900px) = 900px
+```
+→ 화면보다 큰 원이지만 `overflow-hidden`으로 잘림 (의도된 디자인)
+
+**상단 로고**:
+```javascript
+12vmin = 12% × 375px = 45px
+clamp(120px, 45px, 180px) → 최소값 120px 사용
+```
+→ 모바일에서도 명확하게 보이는 크기 유지
+
+---
+
+### 결과 및 성과
+
+✅ **해결된 문제**:
+- 모든 기기에서 일관된 시각적 비율 유지
+- 고해상도 소형 기기(Surface Pro)에서도 적절한 크기로 표시
+- 작은 화면에서도 가독성과 사용성 유지
+- 대형 모니터에서 과도하게 커지지 않음
+
+✅ **반응형 원칙 준수**:
+- **비례 조정**: vmin/vh로 화면 크기에 맞게 자동 조정
+- **최소값 보장**: max()로 작은 화면에서도 읽기 가능
+- **최대값 제한**: clamp()와 max-w로 큰 화면에서 제어
+- **유연한 확대**: 1.5배 확대도 반응형 비율 유지
+
+✅ **성능 개선**:
+- CSS 네이티브 함수 사용 (JavaScript 계산 불필요)
+- 미디어 쿼리 없이 단일 코드로 모든 기기 대응
+- 유지보수 용이 (하나의 값만 수정하면 자동 비례 조정)
+
+**개선 전후 비교**:
+| 항목 | 개선 전 | 개선 후 |
+|-----|--------|--------|
+| 원형 프레임 | `w-[84vw] max-w-[1080px]` | `w-[max(128vmin,900px)] max-w-[1800px]` |
+| 로고 크기 | `w-[160px]` 고정 | `w-[clamp(120px,12vmin,180px)]` 반응형 |
+| 패딩 | `pt-[240px]` 고정 | `pt-[max(20vh,200px)]` 반응형 |
+| 기기 대응 | Surface Pro만 최적화 | 모든 기기 자동 대응 |
+
+---
+
 ## 🔄 페이지 플로우
 
 ### 1. 시작 화면 (`/test/2`)

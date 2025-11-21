@@ -17,7 +17,9 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_resize",
       "mcp__playwright__browser_evaluate",
-      "mcp__notion__notion-fetch"
+      "mcp__notion__notion-fetch",
+      "Bash(python tests/test_result_coverage.py:*)",
+      "Bash(set:*)"
     ],
     "deny": [],
     "ask": []

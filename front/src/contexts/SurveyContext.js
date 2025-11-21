@@ -1,26 +1,26 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 import { questions } from "@/data/questions";
 import { resultData } from "@/data/resultData";
 
 const SurveyContext = createContext();
 
 export function SurveyProvider({ children }) {
-  const [answers, setAnswers] = useState({});
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [scores, setScores] = useState(null);
-  const [result, setResult] = useState(null);
-
-  // sessionStorage에서 답변 불러오기
-  useEffect(() => {
+  // useState lazy initialization으로 sessionStorage 초기값 설정
+  const [answers, setAnswers] = useState(() => {
     if (typeof window !== "undefined") {
       const savedAnswers = sessionStorage.getItem("surveyAnswers");
       if (savedAnswers) {
-        setAnswers(JSON.parse(savedAnswers));
+        return JSON.parse(savedAnswers);
       }
     }
-  }, []);
+    return {};
+  });
+
+  const [currentQuestion, setCurrentQuestion] = useState(1);
+  const [scores, setScores] = useState(null);
+  const [result, setResult] = useState(null);
 
   // 답변 저장
   const setAnswer = (questionOrdinal, answerId) => {
