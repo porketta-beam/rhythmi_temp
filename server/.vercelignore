@@ -1,0 +1,26 @@
+# Poetry 파일 무시 (requirements.txt만 사용)
+pyproject.toml
+poetry.lock
+
+# 개발 전용 파일
+requirements-vercel.txt
+.env
+.env.example
+.python-version
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 테스트
+tests/
+*.pytest_cache/
