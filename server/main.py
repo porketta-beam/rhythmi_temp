@@ -15,9 +15,21 @@ app = FastAPI(
 
 # CORS 설정
 FRONT_URL = os.getenv("FRONT_URL", "http://localhost:3000")
+# 배포된 프론트엔드 도메인도 허용 (환경 변수에서 여러 도메인을 쉼표로 구분하여 설정 가능)
+# 예: FRONT_URLS=https://your-frontend.vercel.app,https://another-domain.com
+FRONT_URLS_STR = os.getenv("FRONT_URLS", "")
+FRONT_URLS = [url.strip() for url in FRONT_URLS_STR.split(",") if url.strip()]
+# 기본 배포 도메인 (프로덕션 환경)
+DEFAULT_DEPLOYMENT_ORIGINS = [
+    "https://event-manager-gax2.vercel.app",
+]
+# 기본 로컬 개발 도메인 추가
+allowed_origins = [FRONT_URL] + FRONT_URLS + DEFAULT_DEPLOYMENT_ORIGINS + ["http://127.0.0.1:3000", "http://localhost:3000"]
+# 중복 제거
+allowed_origins = list(dict.fromkeys(allowed_origins))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONT_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

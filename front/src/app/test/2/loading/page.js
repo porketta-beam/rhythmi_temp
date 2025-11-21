@@ -4,8 +4,7 @@ import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { questions } from "@/data/questions";
 import Image from "next/image";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+import { API_BASE } from "@/lib/apiConfig";
 
 function Loading2Content() {
   const router = useRouter();
@@ -107,7 +106,11 @@ function Loading2Content() {
         return () => clearTimeout(timer);
       } catch (e) {
         console.error("응답 저장 실패", e);
-        alert(e.message || "응답 저장 중 오류가 발생했습니다");
+        const errorMessage = e.message || "응답 저장 중 오류가 발생했습니다";
+        const detailedError = e.message?.includes("fetch") 
+          ? `API 서버 연결 실패: ${API_BASE}\n네트워크 연결 또는 CORS 설정을 확인해주세요.`
+          : errorMessage;
+        alert(detailedError);
         router.back();
       }
     }
