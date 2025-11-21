@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { resultData } from "@/data/resultData";
+import Script from "next/script";
 
 function ShareContent() {
   const params = useSearchParams();
@@ -36,6 +37,17 @@ function ShareContent() {
       setLoading(false);
     }
   }, [memberId]);
+
+  // Kakao SDK 초기화
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Kakao && !window.Kakao.isInitialized()) {
+      const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY;
+      if (kakaoKey && kakaoKey !== 'YOUR_KAKAO_JAVASCRIPT_KEY_HERE') {
+        window.Kakao.init(kakaoKey);
+        console.log('✅ Kakao SDK 초기화 완료');
+      }
+    }
+  }, []);
 
   async function fetchResult(id) {
     try {
@@ -83,6 +95,43 @@ function ShareContent() {
       setLoading(false);
     }
   }
+
+  // 카카오톡 공유 함수
+  const handleKakaoShare = () => {
+    if (typeof window === 'undefined' || !window.Kakao) {
+      alert('카카오톡 공유 기능을 불러올 수 없습니다.');
+      return;
+    }
+
+    if (!window.Kakao.isInitialized()) {
+      alert('카카오톡 SDK가 초기화되지 않았습니다. JavaScript 키를 확인해주세요.');
+      return;
+    }
+
+    const currentUrl = `${process.env.NEXT_PUBLIC_FRONTEND_URL}/share?memberId=${memberId}`;
+
+    window.Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title: result.type,
+        description: result.description,
+        imageUrl: 'https://via.placeholder.com/800x400/FF9800/FFFFFF?text=피부+진단+결과', // 썸네일 이미지
+        link: {
+          mobileWebUrl: currentUrl,
+          webUrl: currentUrl,
+        },
+      },
+      buttons: [
+        {
+          title: '내 진단 결과 보기',
+          link: {
+            mobileWebUrl: currentUrl,
+            webUrl: currentUrl,
+          },
+        },
+      ],
+    });
+  };
 
   // 로딩 상태
   if (loading) {
@@ -373,14 +422,14 @@ function ShareContent() {
           )}
         </div>
 
-        {/* 다시 진단하기 버튼 */}
+        {/* 카카오톡 공유하기 버튼 */}
         <div className="text-center pt-6 pb-4">
-          <a
-            href="/test/2"
-            className="inline-block px-12 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300"
+          <button
+            onClick={handleKakaoShare}
+            className="inline-block px-12 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 cursor-pointer"
           >
-            다시 진단하기 🔄
-          </a>
+            카카오톡 공유하기 💬
+          </button>
         </div>
 
         {/* 디버그 정보 (개발 모드에서만) */}
@@ -399,14 +448,24 @@ function ShareContent() {
 
 export default function SharePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
-          <div className="text-2xl text-orange-700 font-bold">로딩 중...</div>
-        </div>
-      }
-    >
-      <ShareContent />
-    </Suspense>
+    <>
+      {/* Kakao JavaScript SDK 로드 */}
+      <Script
+        src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+        integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
+            <div className="text-2xl text-orange-700 font-bold">로딩 중...</div>
+          </div>
+        }
+      >
+        <ShareContent />
+      </Suspense>
+    </>
   );
 }
