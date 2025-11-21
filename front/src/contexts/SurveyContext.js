@@ -3,6 +3,7 @@
 import { createContext, useContext, useState } from "react";
 import { questions } from "@/data/questions";
 import { resultData } from "@/data/resultData";
+import { API_BASE } from "@/lib/apiConfig";
 
 const SurveyContext = createContext();
 
@@ -136,9 +137,6 @@ export function SurveyProvider({ children }) {
     setAnalysisError(null);
 
     try {
-      // API URL 설정 (환경 변수 또는 기본값)
-      const API_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
-
       // sessionStorage에서 memberId 가져오기 (consent 페이지에서 생성됨)
       let memberId = null;
       if (typeof window !== "undefined") {
@@ -154,7 +152,7 @@ export function SurveyProvider({ children }) {
       }
 
       // 서버 API 호출
-      const response = await fetch(`${API_URL}/api/survey/analyze`, {
+      const response = await fetch(`${API_BASE}/api/survey/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
