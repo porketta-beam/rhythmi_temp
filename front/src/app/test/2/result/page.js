@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { SurveyProvider, useSurvey } from "@/contexts/SurveyContext";
 import { resultData } from "@/data/resultData";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 function ResultContent() {
   const { result, calculateResult, reset } = useSurvey();
   const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
 
   useEffect(() => {
     if (!result) {
@@ -25,10 +25,6 @@ function ResultContent() {
   }
 
   const data = resultData[result];
-
-  const handleReset = () => {
-    reset();
-  };
 
   // 탭 목록
   const tabs = [
@@ -94,19 +90,38 @@ function ResultContent() {
           </h1>
         </div>
 
-        {/* 다시 시작 버튼 */}
-        <Link
-          href="/test/2"
-          onClick={handleReset}
+        {/* 공유하기 버튼 */}
+        <button
+          onClick={() => {
+            // memberId 가져오기 (sessionStorage에서 또는 새로 생성)
+            let memberId = null;
+            if (typeof window !== "undefined") {
+              memberId = sessionStorage.getItem("memberId");
+              if (!memberId) {
+                // 없으면 새로 생성
+                memberId = (typeof crypto !== "undefined" && crypto.randomUUID) 
+                  ? crypto.randomUUID() 
+                  : `member_${Date.now()}`;
+                sessionStorage.setItem("memberId", memberId);
+              }
+            }
+            
+            // share 페이지로 이동
+            if (memberId) {
+              router.push(`/test/2/share?memberId=${encodeURIComponent(memberId)}`);
+            } else {
+              router.push("/test/2/share");
+            }
+          }}
           className="w-full max-w-md px-12 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xl font-bold rounded-full shadow-2xl hover:shadow-orange-300 hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 break-keep"
         >
-          <span>다시 시작하기</span>
-          <span className="text-2xl">🔄</span>
-        </Link>
+          <span>공유하기</span>
+          <span className="text-2xl">📤</span>
+        </button>
       </div>
 
       {/* 우측: 탭 네비게이션 + 컨텐츠 */}
-      <div className="flex flex-col gap-4 z-10">
+      <div className="flex flex-col h-full min-h-0 pb-3 gap-4 z-10">
         {/* 탭 네비게이션 */}
         <div className="flex gap-1.5 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-2xl border-2 border-orange-200">
           {tabs.map((tab) => (
@@ -126,7 +141,7 @@ function ResultContent() {
         </div>
 
         {/* 탭 컨텐츠 영역 */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 shadow-2xl border-2 border-orange-200 max-h-[380px] overflow-y-auto custom-scrollbar" style={{
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 shadow-2xl border-2 border-orange-200 flex-1 overflow-y-auto custom-scrollbar" style={{
           scrollbarWidth: 'thin',
           scrollbarColor: '#fb923c #ffffff'
         }}>

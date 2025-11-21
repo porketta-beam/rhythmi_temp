@@ -22,6 +22,11 @@ export function SurveyProvider({ children }) {
   const [scores, setScores] = useState(null);
   const [result, setResult] = useState(null);
 
+  // AI 분석 관련 상태
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [resultSource, setResultSource] = useState(null); // "ai", "fallback", "client"
+
   // 답변 저장
   const setAnswer = (questionOrdinal, answerId) => {
     const newAnswers = {
@@ -125,7 +130,92 @@ export function SurveyProvider({ children }) {
     return "minimal_routine";
   };
 
-  // 결과 계산 및 저장
+  // AI 서버 분석 함수
+  const analyzeWithAI = async () => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      // API URL 설정 (환경 변수 또는 기본값)
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      // UUID 생성 (브라우저 표준 API)
+      const memberId = crypto.randomUUID();
+
+      // 서버 API 호출
+      const response = await fetch(`${API_URL}/api/survey/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          member_id: memberId,
+          share_url: 'test/2',  // 폼 공유 URL
+          responses: answers
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data.result_type) {
+        // AI 분석 성공 로깅
+        const source = data.data.source;
+        if (source === 'ai') {
+          console.log('✅ [AI 분석 성공]', {
+            result_type: data.data.result_type,
+            source: source,
+            response_id: data.data.response_id
+          });
+        } else if (source === 'fallback') {
+          console.warn('⚠️ [서버 Fallback 사용]', {
+            result_type: data.data.result_type,
+            source: source,
+            response_id: data.data.response_id
+          });
+        }
+
+        setResult(data.data.result_type);
+        setResultSource(source);
+
+        // 스코어 계산 (UI 표시용)
+        const calculatedScores = calculateScores();
+        setScores(calculatedScores);
+
+        setIsAnalyzing(false);
+        return {
+          success: true,
+          resultType: data.data.result_type,
+          source: source,
+          resultData: resultData[data.data.result_type]
+        };
+      } else {
+        throw new Error('Invalid API response');
+      }
+
+    } catch (error) {
+      console.error('AI 분석 실패:', error);
+      setAnalysisError(error.message);
+      setIsAnalyzing(false);
+
+      // API 실패 시 클라이언트 Fallback 사용
+      console.log('클라이언트 Fallback 로직 사용');
+      const fallbackResult = calculateResult();
+      setResultSource('client_fallback');
+
+      return {
+        success: false,
+        error: error.message,
+        ...fallbackResult,
+        source: 'client_fallback'
+      };
+    }
+  };
+
+  // 결과 계산 및 저장 (기존 클라이언트 로직, Fallback 용도)
   const calculateResult = () => {
     const calculatedScores = calculateScores();
     const resultType = determineResultType(calculatedScores);
@@ -146,6 +236,9 @@ export function SurveyProvider({ children }) {
     setCurrentQuestion(1);
     setScores(null);
     setResult(null);
+    setIsAnalyzing(false);
+    setAnalysisError(null);
+    setResultSource(null);
 
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("surveyAnswers");
@@ -161,8 +254,13 @@ export function SurveyProvider({ children }) {
     nextQuestion,
     prevQuestion,
     calculateResult,
+    analyzeWithAI, // 새로 추가: AI 서버 분석 함수
     reset,
-    totalQuestions: questions.length
+    totalQuestions: questions.length,
+    // AI 분석 관련 상태
+    isAnalyzing,
+    analysisError,
+    resultSource
   };
 
   return (

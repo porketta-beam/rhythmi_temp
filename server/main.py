@@ -7,11 +7,17 @@ from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
+# AI 설문 분석 API 라우터 import
+from api import survey_router
+
 app = FastAPI(
     title="Event Manager",
     description="Event Manager Application API",
     version="0.1.0"
 )
+
+# AI 설문 분석 라우터 등록
+app.include_router(survey_router)
 
 # CORS 설정
 FRONT_URL = os.getenv("FRONT_URL", "http://localhost:3000")
@@ -272,7 +278,7 @@ async def create_form_response(form_id: str, payload: FormResponseCreate):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "server.main:app",
+        "main:app",
         host="0.0.0.0",
         port=8000,
         reload=True

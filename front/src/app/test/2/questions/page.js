@@ -13,7 +13,9 @@ function QuestionContent() {
     setAnswer,
     nextQuestion,
     prevQuestion,
-    calculateResult,
+    analyzeWithAI,
+    isAnalyzing,
+    analysisError,
     totalQuestions
   } = useSurvey();
 
@@ -25,7 +27,7 @@ function QuestionContent() {
 
     setTimeout(() => {
       if (currentQuestion === totalQuestions) {
-        calculateResult();
+        // 마지막 질문: 즉시 로딩 페이지로 이동
         router.push("/test/2/loading");
       } else {
         nextQuestion();

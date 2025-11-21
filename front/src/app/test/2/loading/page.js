@@ -1,122 +1,44 @@
 "use client";
 
 import { useEffect, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { questions } from "@/data/questions";
+import { useRouter } from "next/navigation";
+import { SurveyProvider, useSurvey } from "@/contexts/SurveyContext";
 import Image from "next/image";
-import { API_BASE } from "@/lib/apiConfig";
 
 function Loading2Content() {
   const router = useRouter();
-  const params = useSearchParams();
-  const postedRef = useRef(false);
+  const { analyzeWithAI } = useSurvey();
+  const analyzedRef = useRef(false);
 
   useEffect(() => {
-    if (postedRef.current) return; // React StrictMode 중복 실행 방지
-    postedRef.current = true;
+    if (analyzedRef.current) return; // React StrictMode 중복 실행 방지
+    analyzedRef.current = true;
 
-    const answersStr = sessionStorage.getItem("surveyAnswers");
-    const answers = answersStr ? JSON.parse(answersStr) : {};
-
-    // 제출마다 새로운 member_id 생성
-    const memberId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : null;
-
-    // option id -> label 매핑 테이블 (프론트 질문 정의용)
-    const optionIdToLabel = (() => {
-      const map = {};
-      questions.forEach((q) => {
-        (q.options || []).forEach((opt) => {
-          if (opt?.id) map[opt.id] = opt.text || opt.label || String(opt);
-        });
-      });
-      return map;
-    })();
-
-    async function resolveFormId() {
-      const urlParam = params.get("formId");
-      if (urlParam) return urlParam;
-
-      // share_url=test/2 로 조회 (없으면 에러 처리)
-      const byShare = await fetch(`${API_BASE}/api/forms?share_url=test/2`);
-      if (byShare.ok) {
-        const arr = await byShare.json();
-        if (Array.isArray(arr) && arr.length > 0) return arr[0].id;
-      }
-      return null;
-    }
-
-    async function postResponses() {
+    async function runAnalysis() {
       try {
-        const formId = await resolveFormId();
-        if (!formId) throw new Error("formId를 찾을 수 없습니다. URL에 ?formId=UUID 추가하거나 share_url=test/2 폼을 생성하세요.");
+        // AI 서버 분석 호출 (응답 저장 + 분류)
+        const result = await analyzeWithAI();
 
-        // 폼 정의 조회해서 field 순서/ID 확보
-        const formRes = await fetch(`${API_BASE}/api/forms/${formId}`);
-        if (!formRes.ok) throw new Error("폼 정보를 불러오지 못했습니다");
-        const form = await formRes.json();
-
-        // fields 정규화: 배열 또는 객체({ fields: [...] }) 모두 지원
-        let fieldsRaw = form.fields;
-        let fieldsArray = [];
-        if (Array.isArray(fieldsRaw)) {
-          fieldsArray = fieldsRaw;
-        } else if (fieldsRaw && Array.isArray(fieldsRaw.fields)) {
-          fieldsArray = fieldsRaw.fields;
+        if (result.success || result.source === 'client_fallback') {
+          // 성공 또는 클라이언트 Fallback: 결과 페이지로 이동
+          setTimeout(() => {
+            router.push("/test/2/result");
+          }, 800);
         } else {
-          fieldsArray = [];
+          // 완전 실패: 에러 표시 후 뒤로 가기
+          console.error('분석 실패:', result.error);
+          alert('분석 중 문제가 발생했습니다. 다시 시도해 주세요.');
+          router.back();
         }
-        const fieldsOrdered = [...fieldsArray].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-        // q1, q2 ... → 해당 field.id 로 매핑하여 저장
-        const responsesMapped = {};
-        fieldsOrdered.forEach((field, index) => {
-          const ordinalKey = `q${index + 1}`;
-          const selectedId = answers[ordinalKey];
-          // 폼 정의의 옵션에서 index/label 계산 (옵션이 문자열 배열이라고 가정)
-          const opts = Array.isArray(field.options) ? field.options : [];
-          let text = null;
-          if (selectedId !== undefined) {
-            const labelFromClient = optionIdToLabel[selectedId];
-            const matched = opts.find((t) => String(t) === String(labelFromClient));
-            text = matched ?? labelFromClient ?? null; // 폼 옵션과 일치 못 찾으면 프론트 라벨로 저장
-          }
-          if (text !== null) {
-            responsesMapped[field.id] = {
-              value: text,
-              id: selectedId ?? null
-            };
-          }
-        });
-
-        const payload = {
-          form_id: formId,
-          member_id: memberId,
-          responses: responsesMapped,
-          form_version: 1
-        };
-        await fetch(`${API_BASE}/api/forms/${formId}/responses`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const timer = setTimeout(() => {
-          router.push("/test/2/result");
-        }, 800);
-        return () => clearTimeout(timer);
-      } catch (e) {
-        console.error("응답 저장 실패", e);
-        const errorMessage = e.message || "응답 저장 중 오류가 발생했습니다";
-        const detailedError = e.message?.includes("fetch") 
-          ? `API 서버 연결 실패: ${API_BASE}\n네트워크 연결 또는 CORS 설정을 확인해주세요.`
-          : errorMessage;
-        alert(detailedError);
+      } catch (error) {
+        console.error('분석 중 예외 발생:', error);
+        alert('분석 중 예상치 못한 오류가 발생했습니다.');
         router.back();
       }
     }
 
-    postResponses();
-  }, [router, params]);
+    runAnalysis();
+  }, [router, analyzeWithAI]);
 
   return (
     <>
@@ -197,12 +119,14 @@ function Loading2Content() {
 
 export default function Loading2() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-24 h-24 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
-      </div>
-    }>
-      <Loading2Content />
-    </Suspense>
+    <SurveyProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="w-24 h-24 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+        </div>
+      }>
+        <Loading2Content />
+      </Suspense>
+    </SurveyProvider>
   );
 }

@@ -19,7 +19,18 @@
       "mcp__playwright__browser_evaluate",
       "mcp__notion__notion-fetch",
       "Bash(python tests/test_result_coverage.py:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(python:*)",
+      "Bash(poetry --version:*)",
+      "Bash(poetry install:*)",
+      "Bash(poetry run python:*)",
+      "Bash(poetry show:*)",
+      "Bash(timeout:*)",
+      "Bash(.env.local)",
+      "Bash(cat:*)",
+      "Bash(npm run dev)",
+      "Bash(curl:*)",
+      "Bash(poetry add:*)"
     ],
     "deny": [],
     "ask": []
