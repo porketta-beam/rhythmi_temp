@@ -137,7 +137,7 @@ export function SurveyProvider({ children }) {
 
     try {
       // API URL 설정 (환경 변수 또는 기본값)
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
       // sessionStorage에서 memberId 가져오기 (consent 페이지에서 생성됨)
       let memberId = null;
