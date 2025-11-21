@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { resultData } from "@/data/resultData";
 import Script from "next/script";
+import Image from "next/image";
 
 function ShareContent() {
   const params = useSearchParams();
@@ -109,13 +110,14 @@ function ShareContent() {
     }
 
     const currentUrl = `${process.env.NEXT_PUBLIC_FRONTEND_URL}/share?memberId=${memberId}`;
+    const imageUrl = `${process.env.NEXT_PUBLIC_FRONTEND_URL}${result.modelImage}`;
 
     window.Kakao.Share.sendDefault({
       objectType: 'feed',
       content: {
         title: result.type,
         description: result.description,
-        imageUrl: 'https://via.placeholder.com/800x400/FF9800/FFFFFF?text=피부+진단+결과', // 썸네일 이미지
+        imageUrl: imageUrl, // 모델 이미지 사용
         link: {
           mobileWebUrl: currentUrl,
           webUrl: currentUrl,
@@ -185,7 +187,17 @@ function ShareContent() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* 헤더 */}
         <div className="bg-white rounded-3xl p-10 shadow-2xl text-center">
-          <div className="text-6xl mb-4 animate-bounce">{result.emoji}</div>
+          {/* 모델 이미지 */}
+          <div className="relative w-[200px] h-[200px] mx-auto rounded-full overflow-hidden shadow-2xl border-4 border-orange-300 mb-4">
+            <Image
+              src={result.modelImage}
+              alt={result.type}
+              fill
+              className="object-cover"
+              priority
+              sizes="200px"
+            />
+          </div>
           <h1 className="text-3xl font-bold text-orange-900 mb-4 break-keep">
             {result.type}
           </h1>
