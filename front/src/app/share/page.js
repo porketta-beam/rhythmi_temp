@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { resultData } from "@/data/resultData";
+import { API_BASE } from "@/lib/apiConfig";
 
 function ShareContent() {
   const params = useSearchParams();
@@ -40,12 +41,11 @@ function ShareContent() {
   async function fetchResult(id) {
     try {
       setLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE;
 
-      console.log("🔍 [DEBUG] API Base:", apiBase);
+      console.log("🔍 [DEBUG] API Base:", API_BASE);
       console.log("🔍 [DEBUG] Member ID:", id);
 
-      const apiUrl = `${apiBase}/api/result?member_id=${id}&share_url=test/2`;
+      const apiUrl = `${API_BASE}/api/result?member_id=${id}&share_url=test/2`;
       console.log("🔍 [DEBUG] API URL:", apiUrl);
 
       const response = await fetch(apiUrl);
