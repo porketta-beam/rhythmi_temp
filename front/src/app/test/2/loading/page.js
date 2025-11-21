@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { questions } from "@/data/questions";
 import Image from "next/image";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
-export default function Loading2() {
+function Loading2Content() {
   const router = useRouter();
   const params = useSearchParams();
   const postedRef = useRef(false);
@@ -189,5 +189,17 @@ export default function Loading2() {
           </div>
         </div> */}
     </>
+  );
+}
+
+export default function Loading2() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-24 h-24 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <Loading2Content />
+    </Suspense>
   );
 }
