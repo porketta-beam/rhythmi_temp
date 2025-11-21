@@ -43,12 +43,11 @@ function ResultContent() {
     <>
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
+          width: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #fef9f6;
+          background: #ffffff;
           border-radius: 10px;
-          margin: 8px 0;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #fb923c;
@@ -57,32 +56,29 @@ function ResultContent() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #f97316;
         }
-
-        /* 스크롤바 버튼 완전히 제거 - 영역 자체를 0으로 */
         .custom-scrollbar::-webkit-scrollbar-button {
-          display: block;
-          height: 0 !important;
-          width: 0 !important;
-          opacity: 0;
-          visibility: hidden;
+          width: 0;
+          height: 0;
+          background: transparent;
+          display: none;
         }
-
+        .custom-scrollbar::-webkit-scrollbar-button:single-button {
+          width: 0;
+          height: 0;
+          background: transparent;
+          display: none;
+        }
         .custom-scrollbar::-webkit-scrollbar-button:vertical:decrement {
-          height: 0 !important;
-          width: 0 !important;
-          display: block;
+          width: 0;
+          height: 0;
+          background: transparent;
+          display: none;
         }
-
         .custom-scrollbar::-webkit-scrollbar-button:vertical:increment {
-          height: 0 !important;
-          width: 0 !important;
-          display: block;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-button:start:decrement,
-        .custom-scrollbar::-webkit-scrollbar-button:end:increment {
-          height: 0 !important;
-          width: 0 !important;
+          width: 0;
+          height: 0;
+          background: transparent;
+          display: none;
         }
       `}} />
       {/* 좌측: 결과 타입과 이모지 */}
@@ -130,7 +126,10 @@ function ResultContent() {
         </div>
 
         {/* 탭 컨텐츠 영역 */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 shadow-2xl border-2 border-orange-200 max-h-[380px] overflow-y-auto custom-scrollbar">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 shadow-2xl border-2 border-orange-200 max-h-[380px] overflow-y-auto custom-scrollbar" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#fb923c #ffffff'
+        }}>
           {/* 개요 탭 */}
           {activeTab === "overview" && (
             <div className="space-y-4">
