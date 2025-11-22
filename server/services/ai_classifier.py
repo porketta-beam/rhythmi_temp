@@ -219,6 +219,8 @@ class AIClassifier:
             user_prompt = self._build_user_prompt(answers)
 
             logger.info(f"AI 분류 시작 (시도: {retry_count + 1}/{self.max_retries + 1})")
+            logger.info(f"[DEBUG] 입력 answers: {answers}")
+            logger.info(f"[DEBUG] 생성된 user_prompt:\n{user_prompt}")
 
             # OpenAI API 호출
             response = await self.client.chat.completions.create(
@@ -234,6 +236,7 @@ class AIClassifier:
 
             # 응답 추출
             result_text = response.choices[0].message.content
+            logger.info(f"[DEBUG] AI raw response: '{result_text}'")
 
             # 응답 검증
             result_type = self._validate_response(result_text)

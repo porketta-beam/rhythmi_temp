@@ -6,6 +6,13 @@ from db.connection import get_engine
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:     %(name)s - %(message)s'
+)
 
 # AI 설문 분석 API 라우터 import
 from api import survey_router, result_router

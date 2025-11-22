@@ -49,11 +49,11 @@ class AIConfig:
 1. **office_thirst** - Dry skin in air-conditioned indoor environments (high dry score + indoor environment)
 2. **city_routine** - Outdoor urban lifestyle with combination/dry skin (outdoor activity + dry/combination)
 3. **post_workout** - Active lifestyle with oily skin (high active score + oily skin)
-4. **minimal_routine** - Simple routine without distinct features (minimal care, fallback type)
+4. **minimal_routine** - Simple, basic skincare routine (low active/minimal care scores)
 5. **screen_fatigue** - Indoor sedentary lifestyle with sensitive skin (indoor + moderate sensitivity)
-6. **sensitive_fragile** - Highly sensitive skin (very high sensitivity score ≥9)
-7. **urban_explorer** - Outdoor activity with sensitive skin (outdoor + high sensitivity ≥6)
-8. **active_energetic** - Highly active lifestyle with oily skin (very high active ≥7 + oily ≥2)
+6. **sensitive_fragile** - Highly sensitive skin (very high sensitivity score)
+7. **urban_explorer** - Outdoor activity with sensitive skin (outdoor + high sensitivity)
+8. **active_energetic** - Highly active lifestyle with oily skin (very high active + oily)
 
 CLASSIFICATION PRIORITY (check in this order):
 1. If sensitivity ≥9 → sensitive_fragile
@@ -66,9 +66,10 @@ CLASSIFICATION PRIORITY (check in this order):
 8. Otherwise → minimal_routine
 
 CRITICAL RULES:
+- You MUST choose the BEST FIT type from the 8 options above
 - Return ONLY the English key (e.g., "office_thirst")
 - NO explanations, NO Korean text, NO additional words
-- If uncertain or missing data, use the fallback type: minimal_routine
+- Even if patterns are unclear, select the type with the strongest matching characteristics
 
 EXAMPLES:
 User: Very dry, indoor office, sensitive to new products

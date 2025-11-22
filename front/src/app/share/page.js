@@ -80,19 +80,46 @@ function ShareContent() {
 
       // resultData에서 해당 타입의 데이터 가져오기
       if (resultData[resultType]) {
-        setResult({
+        const resultInfo = {
           ...resultData[resultType],
           resultType,
           source: data.data.source,
           classifiedAt: data.data.classified_at
-        });
+        };
+
+        // 이미지 preload 후 결과 설정
+        const modelImagePath = resultData[resultType]?.modelImage;
+
+        if (modelImagePath) {
+          console.log("🖼️ [Share] 이미지 preload 시작:", modelImagePath);
+
+          // 이미지 preload
+          const img = new window.Image();
+          img.src = modelImagePath;
+
+          img.onload = () => {
+            console.log("✅ [Share] 이미지 로드 완료:", modelImagePath);
+            setResult(resultInfo);
+            setLoading(false);
+          };
+
+          img.onerror = () => {
+            console.warn("⚠️ [Share] 이미지 로드 실패, 결과 표시:", modelImagePath);
+            setResult(resultInfo);
+            setLoading(false);
+          };
+        } else {
+          // 이미지 경로 없으면 바로 결과 설정
+          console.warn("⚠️ [Share] 이미지 경로 없음, 바로 표시");
+          setResult(resultInfo);
+          setLoading(false);
+        }
       } else {
         throw new Error(`결과 타입을 찾을 수 없습니다: ${resultType}`);
       }
     } catch (err) {
       console.error("결과 조회 에러:", err);
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   }
