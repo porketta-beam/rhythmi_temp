@@ -44,7 +44,10 @@
       "Bash(nul)",
       "Bash(poetry export:*)",
       "Bash(requirements-vercel.txt)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(if [ -f README.md ])",
+      "Bash(then grep -n -i \"rythmi\" README.md)",
+      "Bash(else echo \"README.md not found\")"
     ],
     "deny": [],
     "ask": []

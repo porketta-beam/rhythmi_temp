@@ -3,7 +3,7 @@
 **고객사**: Rythmi (리듬아이)
 **도메인**: 피부 진단 및 스킨케어 추천 서비스
 **구현 기간**: 2025-11
-**상태**: ✅ Phase 1 완료 (프론트엔드)
+**상태**: ✅ Phase 1.5 완료 (프론트엔드 + AI 분류)
 **타겟 디바이스**: Surface Pro 13인치 태블릿 (2880×1920, Landscape)
 
 ---
@@ -649,6 +649,753 @@ const reset = () => {
   setResult(null);
   sessionStorage.removeItem("surveyAnswers");
 };
+```
+
+---
+
+## 🤖 AI 분류 시스템 (Phase 1.5)
+
+### 개요
+
+**구현 일자**: 2025-11-25
+**구현 범위**: OpenAI GPT-4o-mini 기반 피부 타입 자동 분류
+**Fallback**: 클라이언트 사이드 스코어링 로직
+
+### 아키텍처
+
+#### 분류 흐름
+
+```
+사용자 응답 수집
+    ↓
+프론트엔드 (SurveyContext.js)
+    ↓ API 호출 (POST /api/survey/analyze)
+서버 (FastAPI)
+    ↓
+AI Classifier (GPT-4o-mini)
+    ├─ 성공 → 결과 반환
+    └─ 실패 → Fallback Classifier (rule-based)
+         ├─ 성공 → 결과 반환
+         └─ 실패 → Client Fallback
+```
+
+#### 기술 스택
+
+**백엔드**:
+- FastAPI (Python)
+- OpenAI API (GPT-4o-mini, temperature=0)
+- Supabase (PostgreSQL + PostgREST)
+
+**프론트엔드**:
+- Context API 상태 관리
+- sessionStorage persistence
+
+### AI 프롬프트 설계
+
+#### SYSTEM_PROMPT
+
+```python
+You are a professional skin type classifier for Rythmi.
+Analyze survey responses and classify into ONE of these 8 types:
+
+1. office_thirst - 오후 3시 사무실의 갈증형 (건조 + 실내)
+2. city_routine - 바람 속을 걷는 도시 루틴러형 (야외 + 복합/건조)
+3. post_workout - 땀과 샤워 후의 고요형 (활동 + 지성)
+4. minimal_routine - 가방 속 작은 루틴 수집가형 (미니멀 케어)
+5. screen_fatigue - 화면 빛에 지는 오후의 얼굴형 (실내 + 민감)
+6. sensitive_fragile - 마음처럼 여린 피부결형 (매우 민감)
+7. urban_explorer - 먼지와 마찰 속의 도시 탐험가형 (야외 + 민감)
+8. active_energetic - 열과 속도로 달리는 활력형 (매우 활동적 + 지성)
+
+CRITICAL RULES:
+- You MUST choose the BEST FIT type from the 8 options above
+- Return ONLY the English key (e.g., "office_thirst")
+- NO explanations, NO Korean text, NO additional words
+- Even if patterns are unclear, select the type with the strongest matching characteristics
+```
+
+**핵심 개선 포인트**:
+- ❌ 제거: `"If uncertain → minimal_routine"` (AI 편향 발생 원인)
+- ✅ 추가: `"You MUST choose the BEST FIT"` (강제 선택)
+- ✅ 추가: `"Even if patterns unclear, select strongest match"` (escape 방지)
+
+#### USER_PROMPT 구조
+
+```python
+다음은 사용자의 피부 진단 설문 응답입니다:
+
+- 성별: [여성/남성]
+- 연령대: [20대/30대/...]
+
+Q1. 세안 후 피부가 어떻게 느껴지나요?
+답변: [매우 건조하고 당긴다 / 약간 건조하다 / ...]
+
+Q2. 오후가 되면 유분이 어떻게 느껴지나요?
+답변: [여전히 건조하다 / 코 주변만 살짝 유분 / ...]
+
+... (10문항 전체)
+
+위 응답을 바탕으로 가장 적합한 피부 타입 하나를 영문 키로만 반환하세요.
+```
+
+### API 연동 구현
+
+#### 프론트엔드 (SurveyContext.js)
+
+**답변 키 변환**:
+```javascript
+// 문제: q1, q2, q3... 형식 (UI 표시용)
+// 해결: API 전송 전 실제 질문 ID로 변환
+const transformedAnswers = {};
+Object.keys(answers).forEach((key) => {
+  const ordinal = parseInt(key.substring(1));  // q1 → 1
+  const questionId = questions[ordinal - 1]?.id;  // 1 → questions[0].id (100)
+  if (questionId !== undefined) {
+    transformedAnswers[questionId.toString()] = answers[key];
+  }
+});
+
+// 결과: { "100": "gender_female", "101": "age_20s", "1": "q1a1", ... }
+```
+
+**AI 분석 호출**:
+```javascript
+const response = await fetch(`${API_BASE}/api/survey/analyze`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    member_id: memberId,
+    share_url: 'test/2',
+    responses: transformedAnswers
+  })
+});
+
+const data = await response.json();
+// data.data.result_type: "office_thirst"
+// data.data.source: "ai" | "fallback" | "client_fallback"
+```
+
+#### 백엔드 (FastAPI)
+
+**파일 구조**:
+```
+server/
+├── main.py                    # 진입점, 로깅 설정
+├── api/
+│   └── survey_analyzer.py    # POST /api/survey/analyze
+├── services/
+│   ├── classifier.py          # 통합 분류기 (AI → Fallback)
+│   ├── ai_classifier.py       # OpenAI GPT-4o-mini 호출
+│   └── fallback_classifier.py # Rule-based 백업
+├── config/
+│   └── ai_config.py           # SYSTEM_PROMPT, 설정
+└── db/
+    └── supabase_client.py     # Supabase 연동
+```
+
+**분류 로직 (services/classifier.py)**:
+```python
+async def classify_with_fallback(answers: Dict[str, str]):
+    # 1단계: AI 분류 시도
+    ai_result, ai_error = await classify_skin_type(answers)
+    if ai_result:
+        return ai_result, "ai", None
+
+    # 2단계: Fallback 실행
+    if AIConfig.ENABLE_FALLBACK:
+        fallback_result = fallback_classify(answers)
+        return fallback_result, "fallback", ai_error
+
+    # 완전 실패
+    return None, "none", ai_error
+```
+
+### 정적 모델 이미지 적용
+
+**배경**: 이모지 대신 실제 모델 사진 사용으로 브랜드 강화
+
+**구현 위치**: `/public/model_1.jpg` ~ `/public/model_8.jpg`
+
+#### resultData.js 매핑
+
+```javascript
+export const resultData = {
+  office_thirst: {
+    type: "오후 3시 사무실의 갈증형",
+    emoji: "💧",  // 백업용
+    modelImage: "/model_1.jpg",  // ← 추가
+    description: "...",
+    carePoints: ["..."],
+    routine: "..."
+  },
+  // ... 8가지 타입 모두 model_1.jpg ~ model_8.jpg 매핑
+};
+```
+
+#### Result 페이지 (result/page.js)
+
+```javascript
+import Image from "next/image";
+
+<div className="relative w-[300px] h-[300px] rounded-full overflow-hidden shadow-2xl border-4 border-orange-300">
+  <Image
+    src={data.modelImage}
+    alt={data.type}
+    fill
+    className="object-cover"
+    priority
+    sizes="300px"
+  />
+</div>
+```
+
+#### Share 페이지 (share/page.js)
+
+```javascript
+<div className="relative w-[200px] h-[200px] mx-auto rounded-full overflow-hidden...">
+  <Image
+    src={result.modelImage}
+    alt={result.type}
+    fill
+    className="object-cover"
+    priority
+    sizes="200px"
+  />
+</div>
+```
+
+### AI 결과 Persistence
+
+**문제**: 페이지 전환 시 AI 결과 손실 (Context는 메모리에만 존재)
+
+**해결**: sessionStorage 동기화
+
+#### 저장 (analyzeWithAI 성공 시)
+
+```javascript
+setResult(data.data.result_type);
+setResultSource(source);
+
+if (typeof window !== "undefined") {
+  sessionStorage.setItem("aiResult", data.data.result_type);
+  sessionStorage.setItem("aiResultSource", source);
+}
+```
+
+#### 복원 (result 페이지 useEffect)
+
+```javascript
+useEffect(() => {
+  if (!result) {
+    // sessionStorage에서 복원 시도
+    const savedResult = sessionStorage.getItem("aiResult");
+    const savedSource = sessionStorage.getItem("aiResultSource");
+
+    if (savedResult) {
+      setResult(savedResult);
+      if (savedSource) setResultSource(savedSource);
+      return;
+    }
+
+    // 복원 실패 시 리다이렉트 or 재계산
+    if (!answers || Object.keys(answers).length === 0) {
+      router.replace("/test/2");  // Reset 상태
+    } else {
+      calculateResult();  // 재계산
+    }
+  }
+}, [result, answers]);
+```
+
+### 이미지 Preloading
+
+**문제**: loading → result 전환 시 이미지가 늦게 로드되어 빈 공간 노출
+
+**해결**: Native Image API로 preload 후 navigate
+
+#### Loading 페이지
+
+```javascript
+async function runAnalysis() {
+  const analysisResult = await analyzeWithAI();
+
+  if (analysisResult.success) {
+    const resultType = analysisResult.resultType;
+    const modelImagePath = resultData[resultType]?.modelImage;
+
+    if (modelImagePath) {
+      // 이미지 preload
+      const img = new window.Image();
+      img.src = modelImagePath;
+
+      img.onload = () => {
+        setTimeout(() => router.push("/test/2/result"), 800);
+      };
+
+      img.onerror = () => {
+        setTimeout(() => router.push("/test/2/result"), 800);
+      };
+    }
+  }
+}
+```
+
+#### Share 페이지
+
+```javascript
+async function fetchResult(id) {
+  const response = await fetch(`/api/share/${id}`);
+  const data = await response.json();
+
+  if (resultData[data.resultType]) {
+    const modelImagePath = resultData[data.resultType]?.modelImage;
+
+    if (modelImagePath) {
+      const img = new window.Image();
+      img.src = modelImagePath;
+
+      img.onload = () => {
+        setResult(data);
+        setLoading(false);  // 이미지 로드 후에만 숨김
+      };
+    }
+  }
+}
+```
+
+### 테스트 및 검증
+
+#### 테스트 스위트 (test_ai_classifier.py)
+
+**8가지 타입 대표 패턴**:
+```python
+TEST_PATTERNS = {
+    "office_thirst": {
+        "name": "오후 3시 사무실의 갈증형",
+        "answers": {
+            "100": "gender_female",
+            "101": "age_20s",
+            "1": "q1a1",   # 매우 건조
+            "2": "q2a1",   # 여전히 건조
+            "7": "q7a1",   # 사무실/실내
+            "8": "q8a1",   # 건조한 냉난방
+            ...
+        }
+    },
+    # ... 7가지 타입 패턴
+}
+```
+
+**검증 결과**:
+```
+[ACCURACY] 7/8 (87.5%)
+[DIVERSITY] 7/8 types appeared
+[MINIMAL_ROUTINE] Ratio: 1/8 (12.5%)  # 정상 범위
+```
+
+**테스트 명령어**:
+```bash
+cd server
+python test_ai_classifier.py
+```
+
+### 성과 지표
+
+✅ **AI 분류 정확도**: 87.5% (8개 패턴 중 7개 일치)
+✅ **타입 다양성**: 7/8 타입 골고루 분류
+✅ **minimal_routine 편향 해소**: 80%+ → 12.5%
+✅ **응답 시간**: 평균 2-3초 (OpenAI API 호출)
+✅ **Fallback 안정성**: AI 실패 시 자동 대체
+
+---
+
+## 🔧 기술적 이슈 및 해결 과정
+
+### 이슈 1: 답변 키 형식 불일치
+
+**발견 일자**: 2025-11-25
+**심각도**: 🔴 Critical (AI 분류 실패 원인)
+
+#### 문제 상황
+
+**증상**:
+- AI가 거의 모든 응답에 `minimal_routine` 반환 (80%+)
+- 테스트 환경에서는 정상 작동 (87.5% 정확도)
+
+**원인 분석**:
+
+서버 로그 확인 결과, 프론트엔드가 잘못된 키 형식으로 데이터 전송:
+```python
+# 서버가 받은 데이터
+[DEBUG] 입력 answers: {
+    'q1': 'gender_male',  # ❌ 성별은 "100" 키여야 함
+    'q2': 'age_20s',      # ❌ 연령은 "101" 키여야 함
+    'q3': 'q1a1',         # ❌ Q1은 "1" 키여야 함
+    ...
+}
+```
+
+**기대 형식**:
+```python
+{
+    '100': 'gender_female',  # ✅ 성별 질문 ID
+    '101': 'age_20s',        # ✅ 연령 질문 ID
+    '1': 'q1a1',             # ✅ Q1 ID
+    ...
+}
+```
+
+#### 근본 원인
+
+**UI 표시용 키와 API 키 불일치**:
+
+1. **questions.js 정의**:
+```javascript
+export const questions = [
+  { id: 100, question: "성별을 선택해주세요" },  // 실제 ID: 100
+  { id: 101, question: "연령대를 선택해주세요" }, // 실제 ID: 101
+  { id: 1, question: "세안 후 피부는?" },        // 실제 ID: 1
+  ...
+];
+```
+
+2. **SurveyContext.js 저장 로직**:
+```javascript
+const setAnswer = (questionOrdinal, answerId) => {
+  const newAnswers = {
+    ...answers,
+    [`q${questionOrdinal}`]: answerId  // ❌ q1, q2, q3... 형식으로 저장
+  };
+};
+```
+
+3. **API 호출 시 변환 누락**:
+```javascript
+// ❌ 변환 없이 그대로 전송
+body: JSON.stringify({
+  responses: answers  // { q1: "...", q2: "...", ... }
+})
+```
+
+#### 해결 방법
+
+**SurveyContext.js에 변환 로직 추가**:
+
+```javascript
+// analyzeWithAI() 함수 내부
+const transformedAnswers = {};
+
+Object.keys(answers).forEach((key) => {
+  // q1 → 1 (ordinal 추출)
+  const ordinal = parseInt(key.substring(1));
+
+  // questions[0].id → 100 (실제 질문 ID)
+  const questionId = questions[ordinal - 1]?.id;
+
+  if (questionId !== undefined) {
+    transformedAnswers[questionId.toString()] = answers[key];
+  }
+});
+
+console.log('[DEBUG] 원본 answers:', answers);
+console.log('[DEBUG] 변환된 responses:', transformedAnswers);
+
+// ✅ 변환된 데이터로 API 호출
+body: JSON.stringify({
+  responses: transformedAnswers
+})
+```
+
+#### 검증
+
+**브라우저 콘솔**:
+```javascript
+[DEBUG] 원본 answers: {
+  q1: "gender_female",
+  q2: "age_20s",
+  q3: "q1a1",
+  ...
+}
+[DEBUG] 변환된 responses: {
+  100: "gender_female",  // ✅
+  101: "age_20s",        // ✅
+  1: "q1a1",             // ✅
+  ...
+}
+```
+
+**서버 로그**:
+```python
+INFO: [DEBUG] 입력 answers: {
+    '100': 'gender_female',  # ✅
+    '101': 'age_20s',        # ✅
+    '1': 'q1a1',             # ✅
+    ...
+}
+INFO: [DEBUG] AI raw response: 'office_thirst'  # ✅ 정상 분류
+```
+
+---
+
+### 이슈 2: 로깅 레벨 미설정
+
+**발견 일자**: 2025-11-25
+**심각도**: 🟡 Medium (디버깅 어려움)
+
+#### 문제 상황
+
+**증상**:
+- 서버 로그에 `[DEBUG]` 출력 안 됨
+- AI 분류 과정 추적 불가
+- 에러 원인 파악 어려움
+
+**원인**:
+```python
+# main.py에 로깅 설정 없음
+# Python 기본 로깅 레벨: WARNING
+# → logger.info(), logger.debug() 무시됨
+```
+
+#### 해결 방법
+
+**main.py에 로깅 설정 추가**:
+
+```python
+import logging
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:     %(name)s - %(message)s'
+)
+```
+
+#### 결과
+
+```bash
+INFO:     services.classifier - === 통합 분류 시작 ===
+INFO:     services.ai_classifier - AI 분류 시작 (시도: 1/3)
+INFO:     services.ai_classifier - [DEBUG] 입력 answers: {...}
+INFO:     services.ai_classifier - [DEBUG] 생성된 user_prompt: ...
+INFO:     services.ai_classifier - [DEBUG] AI raw response: 'office_thirst'
+INFO:     services.classifier - [SUCCESS] AI 분류 성공: office_thirst
+```
+
+---
+
+### 이슈 3: AI minimal_routine 편향
+
+**발견 일자**: 2025-11-25
+**심각도**: 🔴 Critical (잘못된 분류 결과)
+
+#### 문제 상황
+
+**증상**:
+- 모든 응답이 `minimal_routine`으로 분류됨 (80%+)
+- 다양한 응답 패턴에도 동일 결과
+
+**원인**:
+
+**SYSTEM_PROMPT의 escape 조항**:
+```python
+SYSTEM_PROMPT = """
+...
+CRITICAL RULES:
+- Return ONLY the English key
+- If uncertain or missing data, use the fallback type: minimal_routine  # ❌
+"""
+```
+
+**AI의 해석**:
+- "확실하지 않으면 minimal_routine 선택해도 돼"
+- → 대부분의 케이스에서 escape 사용
+- → 편향 발생
+
+#### 해결 방법
+
+**Prompt 수정 (config/ai_config.py)**:
+
+```python
+# ❌ 제거
+- If uncertain or missing data, use the fallback type: minimal_routine
+
+# ✅ 추가
+CRITICAL RULES:
+- You MUST choose the BEST FIT type from the 8 options above
+- Return ONLY the English key (e.g., "office_thirst")
+- NO explanations, NO Korean text, NO additional words
+- Even if patterns are unclear, select the type with the strongest matching characteristics
+```
+
+**핵심 변경**:
+1. Escape 경로 제거
+2. 강제 선택 요구 (`MUST choose`)
+3. 불확실한 경우에도 최선 선택 (`strongest matching`)
+
+#### 검증 결과
+
+**Before**:
+```
+minimal_routine: 80%+
+기타 타입: 20%-
+```
+
+**After** (test_ai_classifier.py):
+```
+[ACCURACY] 7/8 (87.5%)
+[DIVERSITY] 7/8 types appeared
+[MINIMAL_ROUTINE] Ratio: 1/8 (12.5%)  # ✅ 정상 범위
+```
+
+---
+
+### 이슈 4: 이미지 늦은 로딩
+
+**발견 일자**: 2025-11-25
+**심각도**: 🟡 Medium (사용자 경험 저하)
+
+#### 문제 상황
+
+**증상**:
+- loading → result 전환 시 이미지 부분이 빈 공간으로 표시
+- 1-2초 후 이미지 나타남
+- 사용자에게 불완전한 화면 노출
+
+**원인**:
+- `router.push("/test/2/result")` 즉시 실행
+- result 페이지 렌더링 시작
+- 이미지 다운로드 시작 (늦음)
+
+#### 해결 방법
+
+**Native Image API로 preload**:
+
+```javascript
+// loading/page.js
+async function runAnalysis() {
+  const analysisResult = await analyzeWithAI();
+
+  if (analysisResult.success) {
+    const modelImagePath = resultData[resultType]?.modelImage;
+
+    if (modelImagePath) {
+      // ✅ 이미지 미리 로드
+      const img = new window.Image();
+      img.src = modelImagePath;
+
+      img.onload = () => {
+        // 이미지 로드 완료 후 navigate
+        setTimeout(() => router.push("/test/2/result"), 800);
+      };
+
+      img.onerror = () => {
+        // 이미지 실패해도 계속 진행
+        setTimeout(() => router.push("/test/2/result"), 800);
+      };
+    }
+  }
+}
+```
+
+**동일 로직 share 페이지에도 적용**:
+
+```javascript
+// share/page.js
+async function fetchResult(id) {
+  // ... API 호출 ...
+
+  const modelImagePath = resultData[resultType]?.modelImage;
+
+  if (modelImagePath) {
+    const img = new window.Image();
+    img.src = modelImagePath;
+
+    img.onload = () => {
+      setResult(resultInfo);
+      setLoading(false);  // ✅ 이미지 로드 후에만 숨김
+    };
+  }
+}
+```
+
+#### 결과
+
+- ✅ 이미지가 캐시에 로드된 상태로 result 페이지 진입
+- ✅ 빈 공간 노출 시간 제거
+- ✅ 부드러운 전환 경험 제공
+
+---
+
+### 교훈 및 베스트 프랙티스
+
+#### 1. 키 형식 일관성
+
+**문제**: UI 표시용 키와 API 전송용 키 불일치
+
+**교훈**:
+- 데이터 레이어 분리 명확히 (UI ↔ API)
+- 변환 로직을 한 곳에 집중 (SurveyContext)
+- 디버그 로그로 변환 전후 비교
+
+**적용**:
+```javascript
+// ✅ Good: 단일 변환 포인트
+const transformedAnswers = transformKeysForAPI(answers);
+
+// ❌ Bad: 여러 곳에서 변환 시도
+```
+
+#### 2. AI Prompt Engineering
+
+**문제**: Escape 조항으로 인한 편향
+
+**교훈**:
+- AI에게 "불확실하면 X" 주지 말것
+- "MUST choose" 같은 강제 언어 사용
+- Temperature 0으로 결정론적 응답 보장
+
+**적용**:
+```python
+# ✅ Good: 강제 선택
+"You MUST choose the BEST FIT type"
+
+# ❌ Bad: Escape 제공
+"If uncertain, use fallback type"
+```
+
+#### 3. 로깅 전략
+
+**문제**: 기본 로깅 레벨로 디버깅 불가
+
+**교훈**:
+- 프로젝트 시작 시 로깅 설정 필수
+- DEBUG 로그를 개발 환경에서 활성화
+- 프로덕션에서는 INFO 레벨 사용
+
+**적용**:
+```python
+# ✅ Good: 명시적 설정
+logging.basicConfig(level=logging.INFO)
+
+# ❌ Bad: 기본값 의존
+```
+
+#### 4. 이미지 최적화
+
+**문제**: 늦은 이미지 로딩으로 빈 공간 노출
+
+**교훈**:
+- 중요 이미지는 preload
+- 페이지 전환 전에 로드 완료 확인
+- 로딩 상태와 이미지 로드 상태 분리
+
+**적용**:
+```javascript
+// ✅ Good: Preload 후 navigate
+img.onload = () => router.push(...);
+
+// ❌ Bad: 즉시 navigate
+router.push(...);
 ```
 
 ---

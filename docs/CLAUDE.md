@@ -29,7 +29,7 @@ docs/
 │   └── MVP_API_SPEC.md   # MVP API 명세서
 │
 ├── clients/               # 고객사 문서
-│   └── RYTHMI.md         # Rythmi 케이스 스터디 (예정)
+│   └── Rythmi.md         # Rythmi 케이스 스터디
 │
 └── screens/               # 화면 정의서
     ├── README.md         # 화면 정의서 인덱스
@@ -120,8 +120,8 @@ docs/
 
 ### 3. 고객사 문서 (clients/)
 
-#### Rythmi 케이스 스터디 (예정)
-📄 [`clients/RYTHMI.md`](./clients/RYTHMI.md)
+#### Rythmi 케이스 스터디
+📄 [`clients/Rythmi.md`](./clients/Rythmi.md)
 
 **내용**:
 - 고객사 프로필 (Rythmi - 피부 진단 서비스)
@@ -374,9 +374,9 @@ API 엔드포인트 및 데이터 구조
 | 설문 폼 구조 | [FORM_DATA.md](./design/FORM_DATA.md) |
 | 폼 응답 데이터 | [FORM_DATA.md](./design/FORM_DATA.md) - 응답 데이터 구조 |
 | 폼 버전 관리 | [FORM_DATA.md](./design/FORM_DATA.md) - 호환성 관리 |
-| Rythmi 구현 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
-| 설문 스코어링 | [RYTHMI.md](./clients/RYTHMI.md) - 스코어 계산 (예정) |
-| 고객사 활용 사례 | [RYTHMI.md](./clients/RYTHMI.md) (예정) |
+| Rythmi 구현 | [Rythmi.md](./clients/Rythmi.md) |
+| 설문 스코어링 | [Rythmi.md](./clients/Rythmi.md) - 스코어 계산 |
+| 고객사 활용 사례 | [Rythmi.md](./clients/Rythmi.md) |
 
 ---
 
@@ -428,7 +428,7 @@ API 엔드포인트 및 데이터 구조
 - [x] 화면 정의서: 이벤트 생성 (5개 화면)
 
 ### 진행 중 문서 🔄
-- [ ] **Rythmi 케이스 스터디** (clients/RYTHMI.md)
+- [x] **Rythmi 케이스 스터디** (clients/Rythmi.md) - ✅ Phase 1.5 완료
 - [ ] 화면 정의서: 대시보드
 - [ ] 화면 정의서: 출석 체크
 - [ ] 화면 정의서: 경품 추첨
