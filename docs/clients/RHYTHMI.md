@@ -1,6 +1,6 @@
-# Rythmi 케이스 스터디
+# Rhythmi 케이스 스터디
 
-**고객사**: Rythmi (리듬아이)
+**고객사**: Rhythmi (리듬아이)
 **도메인**: 피부 진단 및 스킨케어 추천 서비스
 **구현 기간**: 2025-11
 **상태**: ✅ Phase 1.5 완료 (프론트엔드 + AI 분류)
@@ -12,7 +12,7 @@
 
 ### 고객사 프로필
 
-**Rythmi**는 피부 타입을 진단하고 맞춤형 스킨케어 루틴을 추천하는 서비스입니다.
+**Rhythmi**는 피부 타입을 진단하고 맞춤형 스킨케어 루틴을 추천하는 서비스입니다.
 
 **비즈니스 모델**:
 - 무료 피부 진단 설문
@@ -30,7 +30,7 @@
 
 ### 활용 기능
 
-Rythmi는 eventManager의 **설문 폼 기능**을 핵심으로 활용합니다:
+Rhythmi는 eventManager의 **설문 폼 기능**을 핵심으로 활용합니다:
 
 1. **회원 목록 관리**: UUID 기반 사용자 식별
 2. **설문 폼**: 10문항 피부 진단 설문
@@ -39,7 +39,7 @@ Rythmi는 eventManager의 **설문 폼 기능**을 핵심으로 활용합니다:
 
 ### eventManager API 매핑
 
-| Rythmi 기능 | eventManager API | 구현 상태 |
+| Rhythmi 기능 | eventManager API | 구현 상태 |
 |------------|------------------|---------|
 | 사용자 식별 | Members (UUID) | 프론트엔드만 (sessionStorage) |
 | 설문 문항 관리 | Forms.fields | 정적 데이터 (`questions.js`) |
@@ -361,7 +361,7 @@ w-[clamp(120px, 12vmin, 180px)]
 {/* 상단 로고 (가로 중앙) - 반응형 */}
 <div className="absolute top-[max(8vh,80px)] left-1/2 -translate-x-1/2
                 w-[clamp(120px,12vmin,180px)] h-[clamp(91px,9vmin,136px)] z-10">
-  <Image src="/rhythmi_logo_2_white.svg" alt="Rhythmi Logo"
+  <Image src="/Rhythmi_logo_2_white.svg" alt="Rhythmi Logo"
          width={160} height={121}
          className="w-full h-full object-contain" />
 </div>
@@ -377,7 +377,7 @@ w-[clamp(120px, 12vmin, 180px)]
 {/* 하단 작은 로고 (가로 중앙) - 반응형 */}
 <div className="absolute bottom-[max(6vh,50px)] left-1/2 -translate-x-1/2
                 w-[clamp(70px,8vmin,100px)] h-[clamp(70px,8vmin,100px)] z-10">
-  <Image src="/rhythmi_logo_1_white.svg" alt="Rhythmi Icon"
+  <Image src="/Rhythmi_logo_1_white.svg" alt="Rhythmi Icon"
          width={80} height={80}
          className="w-full h-full object-contain" />
 </div>
@@ -695,7 +695,7 @@ AI Classifier (GPT-4o-mini)
 #### SYSTEM_PROMPT
 
 ```python
-You are a professional skin type classifier for Rythmi.
+You are a professional skin type classifier for Rhythmi.
 Analyze survey responses and classify into ONE of these 8 types:
 
 1. office_thirst - 오후 3시 사무실의 갈증형 (건조 + 실내)
@@ -1447,7 +1447,7 @@ router.push(...);
 
 ```json
 {
-  "title": "Rythmi 피부 타입 진단",
+  "title": "Rhythmi 피부 타입 진단",
   "description": "10분 만에 나의 피부 타입을 알아보세요",
   "fields": [
     {

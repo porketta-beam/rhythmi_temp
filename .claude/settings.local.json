@@ -47,7 +47,8 @@
       "Bash(git push)",
       "Bash(if [ -f README.md ])",
       "Bash(then grep -n -i \"rythmi\" README.md)",
-      "Bash(else echo \"README.md not found\")"
+      "Bash(else echo \"README.md not found\")",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
