@@ -59,8 +59,9 @@ app.include_router(result_router)
 # 경품추첨 라우터 등록
 app.include_router(luckydraw_router)
 
-
-
+################################################################################
+# API 엔드포인트 정의
+################################################################################
 
 class EventCreate(BaseModel):
     host_id: str
@@ -93,6 +94,9 @@ class AdminUpsert(BaseModel):
 async def root():
     return {"message": "OK"}
 
+################################################################################
+# FORM API 엔드포인트 정의
+################################################################################
 
 @app.post("/api/admins/upsert")
 async def upsert_admin(payload: AdminUpsert):
