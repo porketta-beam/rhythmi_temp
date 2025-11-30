@@ -72,7 +72,6 @@ async def root():
     """루트 엔드포인트"""
     return {"message": "OK"}
 
-
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
