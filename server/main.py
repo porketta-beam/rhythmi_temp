@@ -7,13 +7,6 @@ from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s:     %(name)s - %(message)s'
-)
-
 # AI 설문 분석 API 라우터 import
 from api import survey_router, result_router, luckydraw_router
 
@@ -22,15 +15,6 @@ app = FastAPI(
     description="Event Manager Application API",
     version="0.1.0"
 )
-
-# AI 설문 분석 라우터 등록
-app.include_router(survey_router)
-
-# 설문 결과 조회 라우터 등록
-app.include_router(result_router)
-
-# 경품추첨 라우터 등록
-app.include_router(luckydraw_router)
 
 # CORS 설정
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
@@ -58,6 +42,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:     %(name)s - %(message)s'
+)
+
+# AI 설문 분석 라우터 등록
+app.include_router(survey_router)
+
+# 설문 결과 조회 라우터 등록
+app.include_router(result_router)
+
+# 경품추첨 라우터 등록
+app.include_router(luckydraw_router)
+
+
 
 
 class EventCreate(BaseModel):
