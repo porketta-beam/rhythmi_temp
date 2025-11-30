@@ -12,10 +12,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "SFS 2025 - 스마트 미래사회 컨퍼런스",
-  description: "SFS 2025 이벤트 관리 시스템",
-};
 
 export default function RootLayout({ children }) {
   return (

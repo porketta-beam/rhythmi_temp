@@ -64,7 +64,7 @@ app.include_router(result_router)      # 설문 결과 조회
 app.include_router(luckydraw_router)   # 경품추첨
 app.include_router(events_router)      # 이벤트 관리
 app.include_router(forms_router)       # 폼 관리
-app.include_router(admins_router)     # 관리자 관리
+app.include_router(admins_router)      # 관리자 관리
 
 
 @app.get("/")
