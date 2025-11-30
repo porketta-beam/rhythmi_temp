@@ -3,13 +3,11 @@
 import { motion } from 'motion/react';
 import { useMemo } from 'react';
 
-// 파티클 데이터를 미리 생성하여 리렌더링 방지
 const PARTICLE_COUNT = 25;
 const RIBBON_COUNT = 15;
 const EMOJI_COUNT = 10;
 
 export function CelebrationEffect() {
-  // useMemo로 랜덤 값 캐싱 - 컴포넌트 마운트 시 한 번만 생성
   const particles = useMemo(() => {
     const colors = ['text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400'];
     return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
@@ -49,7 +47,7 @@ export function CelebrationEffect() {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden will-change-transform">
-      {/* Flash Effect - 단순화 */}
+      {/* Flash Effect */}
       <motion.div
         className="absolute inset-0 bg-white/50"
         initial={{ opacity: 0 }}
@@ -57,7 +55,7 @@ export function CelebrationEffect() {
         transition={{ duration: 0.3 }}
       />
 
-      {/* Particles - 최적화됨 */}
+      {/* Particles */}
       {particles.map((particle) => (
         <motion.div
           key={particle.id}
@@ -80,7 +78,7 @@ export function CelebrationEffect() {
         />
       ))}
 
-      {/* Confetti Ribbons - 최적화됨 */}
+      {/* Confetti Ribbons */}
       {ribbons.map((ribbon) => (
         <motion.div
           key={`ribbon-${ribbon.id}`}
@@ -104,7 +102,7 @@ export function CelebrationEffect() {
         />
       ))}
 
-      {/* Emojis - 최적화됨 */}
+      {/* Emojis */}
       {emojis.map((item) => (
         <motion.div
           key={`emoji-${item.id}`}
@@ -128,7 +126,7 @@ export function CelebrationEffect() {
         </motion.div>
       ))}
 
-      {/* Single Wave - 하나로 줄임 */}
+      {/* Single Wave */}
       <motion.div
         className="absolute inset-0 flex items-center justify-center"
         initial={{ opacity: 0 }}
@@ -152,3 +150,4 @@ export function CelebrationEffect() {
     </div>
   );
 }
+

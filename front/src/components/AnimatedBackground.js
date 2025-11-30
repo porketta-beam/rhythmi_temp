@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
 export function AnimatedBackground() {
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; duration: number }>>([]);
+  const [particles, setParticles] = useState([]);
 
   useEffect(() => {
     const newParticles = Array.from({ length: 30 }, (_, i) => ({

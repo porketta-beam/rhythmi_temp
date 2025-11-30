@@ -9,24 +9,14 @@ import { SlotDigit } from './SlotDigit';
 import { CelebrationEffect } from './CelebrationEffect';
 import { useIsMobile } from './ui/use-mobile';
 
-interface SlotMachineProps {
-  onBack: () => void;
-  currentPrize?: string | null;
-  currentPrizeImage?: string | null;
-  onDrawComplete?: (winningNumber: number[]) => void;
-}
-
-type SlotState = 'idle' | 'spinning' | 'stopping' | 'winner';
-
-export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawComplete }: SlotMachineProps) {
-  const [slotState, setSlotState] = useState<SlotState>('idle');
-  const [winningNumber, setWinningNumber] = useState<number[]>([0, 0, 0]);
+export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawComplete }) {
+  const [slotState, setSlotState] = useState('idle');
+  const [winningNumber, setWinningNumber] = useState([0, 0, 0]);
   const [showCelebration, setShowCelebration] = useState(false);
-  const slotRefs = useRef<Array<{ stop: () => void }>>([]);
+  const slotRefs = useRef([]);
   const isMobile = useIsMobile();
   const hasCalledComplete = useRef(false);
 
-  // 상태가 winner로 변경되면 onDrawComplete 호출
   useEffect(() => {
     if (slotState === 'winner' && !hasCalledComplete.current) {
       hasCalledComplete.current = true;
@@ -39,7 +29,6 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
     setShowCelebration(false);
     hasCalledComplete.current = false;
     
-    // Generate random winning number (0-299)
     const number = Math.floor(Math.random() * 300);
     const digits = [
       Math.floor(number / 100),
@@ -48,7 +37,6 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
     ];
     setWinningNumber(digits);
 
-    // Stop slots sequentially with delay
     setTimeout(() => {
       setSlotState('stopping');
       digits.forEach((_, index) => {
@@ -57,7 +45,6 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
         }, index * 500);
       });
 
-      // Show winner state after all slots stop
       setTimeout(() => {
         setSlotState('winner');
         setShowCelebration(true);
@@ -83,15 +70,10 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
         {/* Title */}
         <motion.div
           className="text-center mb-6 sm:mb-8 md:mb-12"
-          animate={slotState === 'winner' ? {
-            scale: [1, 1.05, 1],
-          } : {}}
-          transition={{
-            duration: 1,
-            repeat: slotState === 'winner' ? Infinity : 0,
-          }}
+          animate={slotState === 'winner' ? { scale: [1, 1.05, 1] } : {}}
+          transition={{ duration: 1, repeat: slotState === 'winner' ? Infinity : 0 }}
         >
-          {/* Prize Badge - 상품 정보 표시 */}
+          {/* Prize Badge */}
           {currentPrize && slotState !== 'winner' && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -125,17 +107,14 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
           >
             {slotState === 'winner' ? '🎉 당첨 번호 🎉' : '행운의 추첨'}
           </h2>
-          <p 
-            className="text-lg sm:text-xl md:text-2xl text-gray-300" 
-            style={{ fontFamily: 'Pretendard, sans-serif' }}
-          >
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-300" style={{ fontFamily: 'Pretendard, sans-serif' }}>
             {slotState === 'idle' && '버튼을 눌러 추첨을 시작하세요'}
             {slotState === 'spinning' && '추첨 중...'}
             {slotState === 'stopping' && '번호 확정 중...'}
             {slotState === 'winner' && '축하합니다!'}
           </p>
           
-          {/* Display Winning Number with Prize */}
+          {/* Winner Display */}
           {slotState === 'winner' && (
             <motion.div
               initial={{ opacity: 0, scale: 0.5 }}
@@ -143,7 +122,6 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
               transition={{ delay: 0.3, duration: 0.5 }}
               className="mt-4 sm:mt-6"
             >
-              {/* Prize Info on Winner */}
               {currentPrize && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -187,21 +165,14 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
 
         {/* Slot Machine Container */}
         <div className="relative mb-6 sm:mb-8 md:mb-12">
-          {/* Outer Glow */}
           <motion.div
             className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-[2rem] sm:rounded-[3rem] blur-xl sm:blur-2xl"
-            animate={{
-              opacity: slotState === 'spinning' || slotState === 'winner' ? [0.3, 0.6, 0.3] : 0.2,
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-            }}
+            animate={{ opacity: slotState === 'spinning' || slotState === 'winner' ? [0.3, 0.6, 0.3] : 0.2 }}
+            transition={{ duration: 2, repeat: Infinity }}
           />
 
-          {/* Main Container */}
           <div className="relative bg-gradient-to-br from-gray-900/95 to-black/95 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] border-2 border-cyan-500/40 p-4 sm:p-8 md:p-12 shadow-2xl">
-            {/* Decorative Corner Elements */}
+            {/* Corner Elements */}
             {[0, 1, 2, 3].map((i) => (
               <motion.div
                 key={i}
@@ -212,14 +183,8 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
                   left: i % 2 === 0 ? -2 : 'auto',
                   right: i % 2 === 1 ? -2 : 'auto',
                 }}
-                animate={{
-                  opacity: [0.5, 1, 0.5],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.2,
-                }}
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
               >
                 <div className="w-full h-full border-2 sm:border-4 border-cyan-400 rounded-lg"
                   style={{
@@ -232,14 +197,12 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
               </motion.div>
             ))}
 
-            {/* Slots Container */}
+            {/* Slots */}
             <div className="flex justify-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-6 sm:mb-8 md:mb-12">
               {[0, 1, 2].map((index) => (
                 <SlotDigit
                   key={index}
-                  ref={(ref) => {
-                    if (ref) slotRefs.current[index] = ref;
-                  }}
+                  ref={(ref) => { if (ref) slotRefs.current[index] = ref; }}
                   finalNumber={winningNumber[index]}
                   isSpinning={slotState === 'spinning' || slotState === 'stopping'}
                   isWinner={slotState === 'winner'}
@@ -250,7 +213,7 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
               ))}
             </div>
 
-            {/* Control Buttons */}
+            {/* Buttons */}
             <div className="flex justify-center gap-3 sm:gap-4 md:gap-6">
               <AnimatePresence mode="wait">
                 {slotState === 'idle' && (
@@ -288,10 +251,7 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
                     exit={{ opacity: 0, scale: 0.8 }}
                     className="flex gap-3 sm:gap-4 md:gap-6"
                   >
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Button
                         onClick={reset}
                         className="h-12 sm:h-16 md:h-20 px-6 sm:px-8 md:px-12 text-base sm:text-xl md:text-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border-0 shadow-[0_0_20px_rgba(168,85,247,0.6)] sm:shadow-[0_0_40px_rgba(168,85,247,0.6)] rounded-xl sm:rounded-2xl"
@@ -307,7 +267,7 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
               </AnimatePresence>
             </div>
 
-            {/* Status Indicator */}
+            {/* Progress */}
             {(slotState === 'spinning' || slotState === 'stopping') && (
               <motion.div
                 className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400"
@@ -319,7 +279,7 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
           </div>
         </div>
 
-        {/* Info Panel */}
+        {/* Info */}
         <motion.div
           className="text-center"
           initial={{ opacity: 0 }}
@@ -328,20 +288,17 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
         >
           <div className="inline-flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-full px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-cyan-400" />
-            <span 
-              className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-300" 
-              style={{ fontFamily: 'Pretendard, sans-serif' }}
-            >
+            <span className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-300" style={{ fontFamily: 'Pretendard, sans-serif' }}>
               참가 번호 범위: <span className="text-white" style={{ fontWeight: 700 }}>000 ~ 299</span>
             </span>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Celebration Effect */}
       <AnimatePresence>
         {showCelebration && <CelebrationEffect />}
       </AnimatePresence>
     </div>
   );
 }
+

@@ -4,33 +4,24 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Gift } from "lucide-react";
 import Image from "next/image";
-import { SlotMachine } from "./components/SlotMachine";
-import { AnimatedBackground } from "./components/AnimatedBackground";
+import { SlotMachine } from "../../components/SlotMachine";
+import { AnimatedBackground } from "../../components/AnimatedBackground";
 
-interface CurrentDraw {
-  isDrawing: boolean;
-  prizeId: string;
-  prizeName: string;
-  prizeImage?: string;
-}
-
-export default function Home() {
-  const [currentPrize, setCurrentPrize] = useState<string | null>(null);
-  const [currentPrizeImage, setCurrentPrizeImage] = useState<string | null>(null);
+export default function LotteryPage() {
+  const [currentPrize, setCurrentPrize] = useState(null);
+  const [currentPrizeImage, setCurrentPrizeImage] = useState(null);
   const [showPrizeAnnouncement, setShowPrizeAnnouncement] = useState(false);
 
   useEffect(() => {
-    // localStorage에서 현재 추첨 정보 확인
     const checkCurrentDraw = () => {
       const drawData = localStorage.getItem('current_draw');
       if (drawData) {
-        const draw: CurrentDraw = JSON.parse(drawData);
+        const draw = JSON.parse(drawData);
         if (draw.isDrawing && draw.prizeName) {
           setCurrentPrize(draw.prizeName);
           setCurrentPrizeImage(draw.prizeImage || null);
           setShowPrizeAnnouncement(true);
           
-          // 3초 후 상품 안내 숨기기
           setTimeout(() => {
             setShowPrizeAnnouncement(false);
           }, 3000);
@@ -40,8 +31,7 @@ export default function Home() {
 
     checkCurrentDraw();
     
-    // Storage 이벤트 리스너 (다른 탭에서 변경 시)
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = (e) => {
       if (e.key === 'current_draw') {
         checkCurrentDraw();
       }
@@ -51,16 +41,13 @@ export default function Home() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // 추첨 완료 시 결과 저장
-  const handleDrawComplete = (winningNumber: number[]) => {
+  const handleDrawComplete = (winningNumber) => {
     const numberStr = winningNumber.join('');
-    
-    // 결과를 localStorage에 저장
     const drawData = localStorage.getItem('current_draw');
+    
     if (drawData) {
-      const draw: CurrentDraw = JSON.parse(drawData);
+      const draw = JSON.parse(drawData);
       
-      // 당첨 결과 저장
       const results = JSON.parse(localStorage.getItem('admin_results') || '[]');
       results.push({
         prizeId: draw.prizeId,
@@ -71,14 +58,12 @@ export default function Home() {
       });
       localStorage.setItem('admin_results', JSON.stringify(results));
       
-      // 상품 추첨 횟수 업데이트
       const prizes = JSON.parse(localStorage.getItem('admin_prizes') || '[]');
-      const updatedPrizes = prizes.map((p: { id: string; drawn: number }) => 
+      const updatedPrizes = prizes.map((p) => 
         p.id === draw.prizeId ? { ...p, drawn: p.drawn + 1 } : p
       );
       localStorage.setItem('admin_prizes', JSON.stringify(updatedPrizes));
       
-      // current_draw 초기화
       localStorage.removeItem('current_draw');
     }
   };
@@ -103,7 +88,6 @@ export default function Home() {
               transition={{ type: "spring", damping: 15 }}
               className="text-center px-4"
             >
-              {/* 상품 이미지 또는 아이콘 */}
               <motion.div
                 animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
                 transition={{ duration: 0.8, repeat: 3 }}
@@ -136,16 +120,13 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* Logo and Title */}
+      {/* Header */}
       <div className="relative z-10 pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div>
             <h1
               className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl mb-1 sm:mb-2"
-              style={{
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 700,
-              }}
+              style={{ fontFamily: "Pretendard, sans-serif", fontWeight: 700 }}
             >
               SFS 2025
             </h1>
@@ -157,7 +138,6 @@ export default function Home() {
             </p>
           </div>
           
-          {/* Current Prize Badge */}
           {currentPrize && !showPrizeAnnouncement && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -185,7 +165,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Content - SlotMachine */}
+      {/* Main Content */}
       <div className="relative z-10">
         <SlotMachine 
           onBack={() => {}} 
@@ -206,3 +186,4 @@ export default function Home() {
     </div>
   );
 }
+

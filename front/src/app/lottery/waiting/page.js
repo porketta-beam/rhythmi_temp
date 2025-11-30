@@ -3,28 +3,23 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, Gift, Clock, CheckCircle2 } from 'lucide-react';
-import { AnimatedBackground } from '../components/AnimatedBackground';
+import { AnimatedBackground } from '../../../components/AnimatedBackground';
 
 export default function WaitingPage() {
-  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
-  const [currentPrize, setCurrentPrize] = useState<string | null>(null);
+  const [ticketNumber, setTicketNumber] = useState(null);
+  const [currentPrize, setCurrentPrize] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
 
   useEffect(() => {
-    // 세션 스토리지에서 티켓 번호 가져오기 (실제로는 API 호출)
     const storedTicket = sessionStorage.getItem('ticketNumber');
     if (storedTicket) {
       setTicketNumber(storedTicket);
     } else {
-      // 데모용: 랜덤 티켓 번호 생성
       const newTicket = String(Math.floor(Math.random() * 300)).padStart(3, '0');
       sessionStorage.setItem('ticketNumber', newTicket);
       setTicketNumber(newTicket);
     }
-
-    // TODO: 실제 구현 시 WebSocket 또는 SSE로 서버와 연결
-    // 현재 추첨 상태, 상품 정보 등을 실시간으로 받아옴
   }, []);
 
   return (
