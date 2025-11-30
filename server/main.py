@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 
 # AI 설문 분석 API 라우터 import
-from api import survey_router, result_router
+from api import survey_router, result_router, luckydraw_router
 
 app = FastAPI(
     title="Event Manager",
@@ -28,6 +28,9 @@ app.include_router(survey_router)
 
 # 설문 결과 조회 라우터 등록
 app.include_router(result_router)
+
+# 경품추첨 라우터 등록
+app.include_router(luckydraw_router)
 
 # CORS 설정
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
