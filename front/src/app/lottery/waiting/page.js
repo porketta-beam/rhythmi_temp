@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, Gift, Clock, CheckCircle2 } from 'lucide-react';
-import { AnimatedBackground } from '../../../components/AnimatedBackground';
+import { AnimatedBackground } from '../../../components/lottery/AnimatedBackground';
 
 export default function WaitingPage() {
   const [ticketNumber, setTicketNumber] = useState(null);

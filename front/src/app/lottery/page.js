@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Gift } from "lucide-react";
 import Image from "next/image";
-import { SlotMachine } from "../../components/SlotMachine";
-import { AnimatedBackground } from "../../components/AnimatedBackground";
+import { SlotMachine } from "../../components/lottery/SlotMachine";
+import { AnimatedBackground } from "../../components/lottery/AnimatedBackground";
 
 export default function LotteryPage() {
   const [currentPrize, setCurrentPrize] = useState(null);

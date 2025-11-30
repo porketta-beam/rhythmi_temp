@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, RotateCcw, Sparkles, Gift } from 'lucide-react';
 import Image from 'next/image';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { SlotDigit } from './SlotDigit';
 import { CelebrationEffect } from './CelebrationEffect';
-import { useIsMobile } from './ui/use-mobile';
+import { useIsMobile } from '../ui/use-mobile';
 
 export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawComplete }) {
   const [slotState, setSlotState] = useState('idle');
