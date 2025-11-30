@@ -49,7 +49,7 @@
   - 모든 기기에서 자동 크기 조정
   - 최소/최대값 보장으로 가독성 유지
 
-**참고 문서**: [`docs/clients/RYTHMI.md`](./docs/clients/RYTHMI.md)
+**참고 문서**: [`docs/clients/Rythmi.md`](./docs/clients/Rythmi.md)
 
 ---
 
@@ -296,7 +296,7 @@ chore: 빌드 설정 변경
 - [MVP API 명세서](./docs/api/MVP_API_SPEC.md)
 
 ### 고객사 문서
-- [Rythmi 케이스 스터디](./docs/clients/RYTHMI.md) (예정)
+- [Rythmi 케이스 스터디](./docs/clients/Rythmi.md)
 
 ### 백엔드 가이드
 - [폼 데이터 관리 가이드](./server/CLAUDE.md)

@@ -4,17 +4,43 @@ import { SurveyProvider, useSurvey } from "@/contexts/SurveyContext";
 import { resultData } from "@/data/resultData";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 function ResultContent() {
-  const { result, calculateResult, reset } = useSurvey();
+  const { result, setResult, setResultSource, calculateResult, reset, answers } = useSurvey();
   const [activeTab, setActiveTab] = useState("overview");
   const router = useRouter();
 
+  // sessionStorage에서 AI 결과 복원 (result 페이지에서만)
   useEffect(() => {
     if (!result) {
-      calculateResult();
+      // 1단계: sessionStorage에서 복원 시도
+      if (typeof window !== "undefined") {
+        const savedResult = sessionStorage.getItem("aiResult");
+        const savedSource = sessionStorage.getItem("aiResultSource");
+
+        if (savedResult) {
+          console.log("✅ [Result] AI 결과 복원:", savedResult, "출처:", savedSource);
+          setResult(savedResult);
+          if (savedSource) {
+            setResultSource(savedSource);
+          }
+          return; // 복원 완료
+        }
+      }
+
+      // 2단계: sessionStorage에 없으면 answers 확인
+      if (!answers || Object.keys(answers).length === 0) {
+        // answers도 없으면 reset된 상태 → 시작 페이지로 리다이렉트
+        console.log("🔄 [Result] 데이터 없음 - 시작 페이지로 이동");
+        router.replace("/test/2");
+      } else {
+        // answers가 있으면 로딩 중 → 결과 계산
+        console.log("📊 [Result] 결과 계산 중...");
+        calculateResult();
+      }
     }
-  }, [result, calculateResult]);
+  }, [result, setResult, setResultSource, answers, calculateResult, router]);
 
   if (!result) {
     return (
@@ -77,14 +103,24 @@ function ResultContent() {
           display: none;
         }
       `}} />
-      {/* 좌측: 결과 타입과 이모지 */}
+      {/* 좌측: 결과 타입과 모델 이미지 */}
       <div className="flex flex-col justify-center items-center gap-6 z-10">
         {/* 결과 타입 */}
         <div className="flex flex-col items-center gap-3 text-center">
           <p className="text-xl text-orange-800 font-bold break-keep">
             당신의 피부 타입은
           </p>
-          <div className="text-[80px] animate-bounce">{data.emoji}</div>
+          {/* 모델 이미지 */}
+          <div className="relative w-[300px] h-[300px] rounded-full overflow-hidden shadow-2xl border-4 border-orange-300">
+            <Image
+              src={data.modelImage}
+              alt={data.type}
+              fill
+              className="object-cover"
+              priority
+              sizes="300px"
+            />
+          </div>
           <h1 className="text-4xl font-bold text-orange-900 leading-tight break-keep">
             {data.type}
           </h1>
