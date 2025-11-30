@@ -3,11 +3,12 @@
 import { useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { SurveyProvider, useSurvey } from "@/contexts/SurveyContext";
+import { resultData } from "@/data/resultData";
 import Image from "next/image";
 
 function Loading2Content() {
   const router = useRouter();
-  const { analyzeWithAI } = useSurvey();
+  const { analyzeWithAI, result } = useSurvey();
   const analyzedRef = useRef(false);
 
   useEffect(() => {
@@ -17,16 +18,46 @@ function Loading2Content() {
     async function runAnalysis() {
       try {
         // AI 서버 분석 호출 (응답 저장 + 분류)
-        const result = await analyzeWithAI();
+        const analysisResult = await analyzeWithAI();
 
-        if (result.success || result.source === 'client_fallback') {
-          // 성공 또는 클라이언트 Fallback: 결과 페이지로 이동
-          setTimeout(() => {
-            router.push("/test/2/result");
-          }, 800);
+        if (analysisResult.success || analysisResult.source === 'client_fallback') {
+          // 성공 또는 클라이언트 Fallback: 결과 이미지 preload 후 이동
+          console.log("🖼️ [Loading] 결과 이미지 preload 시작");
+
+          // result 타입에 해당하는 모델 이미지 경로 가져오기
+          const resultType = analysisResult.resultType;
+          const modelImagePath = resultData[resultType]?.modelImage;
+
+          if (modelImagePath) {
+            // 이미지 preload
+            const img = new window.Image();
+            img.src = modelImagePath;
+
+            img.onload = () => {
+              console.log("✅ [Loading] 이미지 로드 완료:", modelImagePath);
+              // 이미지 로드 완료 후 최소 800ms 대기 (부드러운 전환)
+              setTimeout(() => {
+                router.push("/test/2/result");
+              }, 800);
+            };
+
+            img.onerror = () => {
+              console.warn("⚠️ [Loading] 이미지 로드 실패, 바로 이동:", modelImagePath);
+              // 이미지 로드 실패해도 페이지는 이동
+              setTimeout(() => {
+                router.push("/test/2/result");
+              }, 800);
+            };
+          } else {
+            // 이미지 경로 없으면 바로 이동
+            console.warn("⚠️ [Loading] 이미지 경로 없음, 바로 이동");
+            setTimeout(() => {
+              router.push("/test/2/result");
+            }, 800);
+          }
         } else {
           // 완전 실패: 에러 표시 후 뒤로 가기
-          console.error('분석 실패:', result.error);
+          console.error('분석 실패:', analysisResult.error);
           alert('분석 중 문제가 발생했습니다. 다시 시도해 주세요.');
           router.back();
         }
@@ -38,7 +69,7 @@ function Loading2Content() {
     }
 
     runAnalysis();
-  }, [router, analyzeWithAI]);
+  }, [router, analyzeWithAI, result]);
 
   return (
     <>

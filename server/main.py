@@ -6,9 +6,16 @@ from db.connection import get_engine
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:     %(name)s - %(message)s'
+)
 
 # AI 설문 분석 API 라우터 import
-from api import survey_router, result_router
+from api import survey_router, result_router, luckydraw_router
 
 app = FastAPI(
     title="Event Manager",
@@ -22,24 +29,27 @@ app.include_router(survey_router)
 # 설문 결과 조회 라우터 등록
 app.include_router(result_router)
 
-# CORS 설정
-FRONT_URL = os.getenv("FRONT_URL", "http://localhost:3000")
-# 배포된 프론트엔드 도메인도 허용 (환경 변수에서 여러 도메인을 쉼표로 구분하여 설정 가능)
-# 예: FRONT_URLS=https://your-frontend.vercel.app,https://another-domain.com
-FRONT_URLS_STR = os.getenv("FRONT_URLS", "")
-FRONT_URLS = [url.strip() for url in FRONT_URLS_STR.split(",") if url.strip()]
-# 기본 배포 도메인 (프로덕션 환경)
-DEFAULT_DEPLOYMENT_ORIGINS = [
-    "https://event-manager-gax2.vercel.app",
-]
-# 기본 로컬 개발 도메인 추가
-allowed_origins = [FRONT_URL] + FRONT_URLS + DEFAULT_DEPLOYMENT_ORIGINS + ["http://127.0.0.1:3000", "http://localhost:3000"]
-# 중복 제거
-allowed_origins = list(dict.fromkeys(allowed_origins))
+# 경품추첨 라우터 등록
+app.include_router(luckydraw_router)
 
-# TODO(human): DEBUG 모드 체크하여 개발/프로덕션 환경별 CORS 설정 분기
-# 개발 환경(DEBUG=true): allow_origins=["*"]
-# 프로덕션 환경(DEBUG=false): allow_origins=allowed_origins
+# CORS 설정
+DEBUG = os.getenv("DEBUG", "true").lower() == "true"
+
+if DEBUG:
+    # 개발 환경: 모든 origin 허용
+    allowed_origins = ["*"]
+    print("🔓 [CORS] DEBUG 모드: 모든 origin 허용")
+else:
+    # 프로덕션 환경: 특정 도메인만 허용
+    FRONT_URL = os.getenv("FRONT_URL", "http://localhost:3000")
+    FRONT_URLS_STR = os.getenv("FRONT_URLS", "")
+    FRONT_URLS = [url.strip() for url in FRONT_URLS_STR.split(",") if url.strip()]
+    DEFAULT_DEPLOYMENT_ORIGINS = [
+        "https://event-manager-gax2.vercel.app",
+    ]
+    allowed_origins = [FRONT_URL] + FRONT_URLS + DEFAULT_DEPLOYMENT_ORIGINS + ["http://127.0.0.1:3000", "http://localhost:3000"]
+    allowed_origins = list(dict.fromkeys(allowed_origins))
+    print(f"🔒 [CORS] 프로덕션 모드: {len(allowed_origins)}개 도메인 허용")
 
 app.add_middleware(
     CORSMiddleware,
