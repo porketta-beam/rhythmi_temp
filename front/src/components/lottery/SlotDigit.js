@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { motion } from 'motion/react';
 
 export const SlotDigit = forwardRef(function SlotDigit(
@@ -11,11 +11,23 @@ export const SlotDigit = forwardRef(function SlotDigit(
   const [isStopping, setIsStopping] = useState(false);
   const [hasStopped, setHasStopped] = useState(false);
 
+  // 이전 shouldReset 값을 추적하여 변경 시에만 리셋
+  const prevShouldResetRef = useRef(shouldReset);
+  
+  useEffect(() => {
+    // shouldReset이 false -> true로 변경될 때만 리셋
+    if (shouldReset && !prevShouldResetRef.current) {
+      // 다음 렌더에서 리셋 수행을 위해 ref만 업데이트
+      prevShouldResetRef.current = shouldReset;
+    } else if (!shouldReset && prevShouldResetRef.current) {
+      prevShouldResetRef.current = shouldReset;
+    }
+  }, [shouldReset]);
+
+  // 스피닝 effect
   useEffect(() => {
     if (shouldReset) {
-      setCurrentNumber(0);
-      setIsStopping(false);
-      setHasStopped(false);
+      // 리셋 상태에서는 초기값 유지
       return;
     }
 
@@ -29,6 +41,13 @@ export const SlotDigit = forwardRef(function SlotDigit(
 
     return () => clearInterval(interval);
   }, [isSpinning, shouldReset]);
+
+  // shouldReset 변경 시 상태 초기화 (동기적으로 렌더링 전에 처리)
+  if (shouldReset && (currentNumber !== 0 || isStopping || hasStopped)) {
+    setCurrentNumber(0);
+    setIsStopping(false);
+    setHasStopped(false);
+  }
 
   useImperativeHandle(ref, () => ({
     stop: () => {
@@ -218,4 +237,3 @@ export const SlotDigit = forwardRef(function SlotDigit(
     </div>
   );
 });
-

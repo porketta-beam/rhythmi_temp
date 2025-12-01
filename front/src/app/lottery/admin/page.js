@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Gift, Plus, Trash2, Play, RotateCcw, Check, 
@@ -8,6 +8,25 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
+
+// localStorage에서 초기값 로드하는 함수 (컴포넌트 외부)
+const getInitialPrizes = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('admin_prizes');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const getInitialResults = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('admin_results');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const getInitialNumbers = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('assigned_numbers');
+  return stored ? JSON.parse(stored) : [];
+};
 
 export default function AdminPage() {
   const [prizes, setPrizes] = useState([]);
@@ -17,25 +36,32 @@ export default function AdminPage() {
   const [drawResults, setDrawResults] = useState([]);
   const [assignedNumbers, setAssignedNumbers] = useState([]);
   const [imagePreview, setImagePreview] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const fileInputRef = useRef(null);
 
+  // 초기화 effect - 마운트 시 한 번만 실행
   useEffect(() => {
-    const storedPrizes = localStorage.getItem('admin_prizes');
-    const storedResults = localStorage.getItem('admin_results');
-    const storedNumbers = localStorage.getItem('assigned_numbers');
-    
-    if (storedPrizes) setPrizes(JSON.parse(storedPrizes));
-    if (storedResults) setDrawResults(JSON.parse(storedResults));
-    if (storedNumbers) setAssignedNumbers(JSON.parse(storedNumbers));
+    const initData = () => {
+      setPrizes(getInitialPrizes());
+      setDrawResults(getInitialResults());
+      setAssignedNumbers(getInitialNumbers());
+      setIsInitialized(true);
+    };
+    initData();
   }, []);
 
+  // 저장 effect - 초기화 후에만 실행
   useEffect(() => {
-    localStorage.setItem('admin_prizes', JSON.stringify(prizes));
-  }, [prizes]);
+    if (isInitialized) {
+      localStorage.setItem('admin_prizes', JSON.stringify(prizes));
+    }
+  }, [prizes, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem('admin_results', JSON.stringify(drawResults));
-  }, [drawResults]);
+    if (isInitialized) {
+      localStorage.setItem('admin_results', JSON.stringify(drawResults));
+    }
+  }, [drawResults, isInitialized]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];

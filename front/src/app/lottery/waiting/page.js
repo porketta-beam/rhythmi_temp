@@ -1,26 +1,40 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, Gift, Clock, CheckCircle2 } from 'lucide-react';
 import { AnimatedBackground } from '../../../components/lottery/AnimatedBackground';
 
+// 티켓 번호 생성 함수 (컴포넌트 외부)
+const generateTicketNumber = () => {
+  return String(Math.floor(Math.random() * 300)).padStart(3, '0');
+};
+
+// sessionStorage를 외부 스토어로 사용
+const subscribeToTicket = (callback) => {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getTicketSnapshot = () => {
+  const stored = sessionStorage.getItem('ticketNumber');
+  if (stored) return stored;
+  const newTicket = generateTicketNumber();
+  sessionStorage.setItem('ticketNumber', newTicket);
+  return newTicket;
+};
+
+const getServerSnapshot = () => null;
+
 export default function WaitingPage() {
-  const [ticketNumber, setTicketNumber] = useState(null);
+  const ticketNumber = useSyncExternalStore(
+    subscribeToTicket,
+    getTicketSnapshot,
+    getServerSnapshot
+  );
   const [currentPrize, setCurrentPrize] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
-
-  useEffect(() => {
-    const storedTicket = sessionStorage.getItem('ticketNumber');
-    if (storedTicket) {
-      setTicketNumber(storedTicket);
-    } else {
-      const newTicket = String(Math.floor(Math.random() * 300)).padStart(3, '0');
-      sessionStorage.setItem('ticketNumber', newTicket);
-      setTicketNumber(newTicket);
-    }
-  }, []);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#10062D] via-[#341f97] to-[#c9208a]">

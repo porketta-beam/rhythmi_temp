@@ -1,49 +1,53 @@
 "use client";
 
 import { motion } from 'motion/react';
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 const PARTICLE_COUNT = 25;
 const RIBBON_COUNT = 15;
 const EMOJI_COUNT = 10;
 
+// 컴포넌트 외부에서 고정된 패턴으로 생성 (순수성 유지)
+const colors = ['text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400'];
+const emojiList = ['✨', '⭐', '💫', '🎉', '🎊'];
+
+const generateParticles = () => Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+  id: i,
+  x: (i * 4.17) % 100,
+  y: (i * 3.33) % 100,
+  rotation: (i * 14.4) % 360,
+  scale: 0.5 + (i % 10) * 0.1,
+  moveX: ((i % 10) - 5) * 60,
+  moveY: ((i % 7) - 3.5) * 85,
+  color: colors[i % colors.length],
+}));
+
+const generateRibbons = () => Array.from({ length: RIBBON_COUNT }, (_, i) => ({
+  id: i,
+  left: (i * 6.67) % 100,
+  rotation: (i * 48) - 360,
+  moveX: ((i % 6) - 3) * 50,
+  duration: 2 + (i % 4) * 0.5,
+  delay: (i % 5) * 0.1,
+  gradient: (i * 24) % 360,
+}));
+
+const generateEmojis = () => Array.from({ length: EMOJI_COUNT }, (_, i) => ({
+  id: i,
+  left: (i * 10) % 100,
+  top: (i * 11) % 100,
+  emoji: emojiList[i % emojiList.length],
+  delay: (i % 4) * 0.1,
+}));
+
+const initialParticles = generateParticles();
+const initialRibbons = generateRibbons();
+const initialEmojis = generateEmojis();
+
 export function CelebrationEffect() {
-  const particles = useMemo(() => {
-    const colors = ['text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-yellow-400'];
-    return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      rotation: Math.random() * 360,
-      scale: 0.5 + Math.random() * 1,
-      moveX: (Math.random() - 0.5) * 300,
-      moveY: (Math.random() - 0.5) * 300,
-      color: colors[i % colors.length],
-    }));
-  }, []);
-
-  const ribbons = useMemo(() => {
-    return Array.from({ length: RIBBON_COUNT }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      rotation: Math.random() * 720 - 360,
-      moveX: (Math.random() - 0.5) * 150,
-      duration: 2 + Math.random() * 1.5,
-      delay: Math.random() * 0.3,
-      gradient: Math.random() * 360,
-    }));
-  }, []);
-
-  const emojis = useMemo(() => {
-    const emojiList = ['✨', '⭐', '💫', '🎉', '🎊'];
-    return Array.from({ length: EMOJI_COUNT }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      emoji: emojiList[i % emojiList.length],
-      delay: Math.random() * 0.3,
-    }));
-  }, []);
+  const [particles] = useState(initialParticles);
+  const [ribbons] = useState(initialRibbons);
+  const [emojis] = useState(initialEmojis);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden will-change-transform">
@@ -150,4 +154,3 @@ export function CelebrationEffect() {
     </div>
   );
 }
-
