@@ -13,6 +13,25 @@ import { luckydrawAPI } from '../../../lib/api/luckydraw';
 // 기본 이벤트 ID (실제 서비스에서는 URL 파라미터 또는 설정에서 가져옴)
 const DEFAULT_EVENT_ID = "sfs-2025";
 
+// localStorage에서 초기값 로드하는 함수 (컴포넌트 외부)
+const getInitialPrizes = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('admin_prizes');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const getInitialResults = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('admin_results');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const getInitialNumbers = () => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem('assigned_numbers');
+  return stored ? JSON.parse(stored) : [];
+};
+
 export default function AdminPage() {
   const [prizes, setPrizes] = useState([]);
   const [selectedPrize, setSelectedPrize] = useState(null);
@@ -23,6 +42,7 @@ export default function AdminPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const fileInputRef = useRef(null);
 
   // 참가자 수 및 추첨 이력 조회
@@ -50,6 +70,7 @@ export default function AdminPage() {
     // localStorage에서 상품 목록 로드 (상품은 로컬에서 관리)
     const storedPrizes = localStorage.getItem('admin_prizes');
     if (storedPrizes) setPrizes(JSON.parse(storedPrizes));
+    setIsInitialized(true);
 
     // 서버에서 데이터 로드
     fetchData();
@@ -59,10 +80,13 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // 상품 목록 로컬 저장
+  // 상품 목록 로컬 저장 (초기화 후에만)
   useEffect(() => {
-    localStorage.setItem('admin_prizes', JSON.stringify(prizes));
-  }, [prizes]);
+    if (isInitialized) {
+      localStorage.setItem('admin_prizes', JSON.stringify(prizes));
+    }
+  }, [prizes, isInitialized]);
+
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];

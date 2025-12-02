@@ -1,20 +1,20 @@
 "use client";
 
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// 컴포넌트 외부에서 미리 생성 (순수성 유지)
+const generateParticles = () => Array.from({ length: 30 }, (_, i) => ({
+  id: i,
+  x: (i * 3.33) % 100,  // 고정된 패턴 사용
+  y: (i * 7.77) % 100,
+  duration: 10 + (i % 10) * 2,
+}));
+
+const initialParticles = generateParticles();
 
 export function AnimatedBackground() {
-  const [particles, setParticles] = useState([]);
-
-  useEffect(() => {
-    const newParticles = Array.from({ length: 30 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      duration: 10 + Math.random() * 20,
-    }));
-    setParticles(newParticles);
-  }, []);
+  const [particles, setParticles] = useState(initialParticles);
 
   return (
     <div className="absolute inset-0 overflow-hidden">
@@ -72,4 +72,3 @@ export function AnimatedBackground() {
     </div>
   );
 }
-

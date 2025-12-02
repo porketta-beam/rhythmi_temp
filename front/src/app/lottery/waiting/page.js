@@ -11,7 +11,11 @@ import { luckydrawSocket } from '../../../lib/websocket/luckydrawSocket';
 const DEFAULT_EVENT_ID = "sfs-2025";
 
 export default function WaitingPage() {
-  const [ticketNumber, setTicketNumber] = useState(null);
+  // 서버에서 발급받은 번호를 useState로 관리 (sessionStorage에도 백업)
+  const [ticketNumber, setTicketNumber] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('ticketNumber');
+  });
   const [currentPrize, setCurrentPrize] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
@@ -20,11 +24,20 @@ export default function WaitingPage() {
   const [error, setError] = useState(null);
   const [totalParticipants, setTotalParticipants] = useState(0);
 
-  // 참가자 등록
+  // 참가자 등록 및 번호 발급
   const registerParticipant = useCallback(async () => {
+    // 이미 번호가 있으면 재등록 스킵
+    const existingNumber = sessionStorage.getItem('ticketNumber');
+    if (existingNumber) {
+      setTicketNumber(existingNumber);
+      return;
+    }
+
     try {
       const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
-      setTicketNumber(String(result.drawNumber).padStart(3, '0'));
+      const newNumber = String(result.drawNumber).padStart(3, '0');
+      setTicketNumber(newNumber);
+      sessionStorage.setItem('ticketNumber', newNumber); // 백업 저장
       setError(null);
     } catch (err) {
       console.error('참가자 등록 실패:', err);
@@ -57,7 +70,8 @@ export default function WaitingPage() {
 
   const handleEventReset = useCallback((data) => {
     if (data.reset_participants) {
-      // 참가자 목록이 리셋되면 다시 등록
+      // 참가자 목록이 리셋되면 번호 삭제 후 재등록
+      sessionStorage.removeItem('ticketNumber');
       setTicketNumber(null);
       setIsWinner(false);
       setWonPrizeName(null);
