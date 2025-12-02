@@ -72,6 +72,11 @@ async def root():
     """루트 엔드포인트"""
     return {"message": "OK"}
 
+
+# WebSocket 엔드포인트는 api/luckydraw.py의 luckydraw_router에서 관리됩니다.
+# 경로: /api/luckydraw/ws/{event_id}
+
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

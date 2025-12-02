@@ -1,26 +1,116 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ticket, Gift, Clock, CheckCircle2 } from 'lucide-react';
+import { Ticket, Gift, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { AnimatedBackground } from '../../../components/lottery/AnimatedBackground';
+import { luckydrawAPI } from '../../../lib/api/luckydraw';
+import { luckydrawSocket } from '../../../lib/websocket/luckydrawSocket';
+
+// 기본 이벤트 ID (실제 서비스에서는 URL 파라미터 또는 설정에서 가져옴)
+const DEFAULT_EVENT_ID = "sfs-2025";
 
 export default function WaitingPage() {
   const [ticketNumber, setTicketNumber] = useState(null);
   const [currentPrize, setCurrentPrize] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
+  const [wonPrizeName, setWonPrizeName] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('connecting'); // connecting, connected, disconnected, error
+  const [error, setError] = useState(null);
+  const [totalParticipants, setTotalParticipants] = useState(0);
 
-  useEffect(() => {
-    const storedTicket = sessionStorage.getItem('ticketNumber');
-    if (storedTicket) {
-      setTicketNumber(storedTicket);
-    } else {
-      const newTicket = String(Math.floor(Math.random() * 300)).padStart(3, '0');
-      sessionStorage.setItem('ticketNumber', newTicket);
-      setTicketNumber(newTicket);
+  // 참가자 등록
+  const registerParticipant = useCallback(async () => {
+    try {
+      const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
+      setTicketNumber(String(result.drawNumber).padStart(3, '0'));
+      setError(null);
+    } catch (err) {
+      console.error('참가자 등록 실패:', err);
+      setError(err.message || '등록에 실패했습니다');
     }
   }, []);
+
+  // WebSocket 이벤트 핸들러
+  const handleParticipantJoined = useCallback((data) => {
+    setTotalParticipants(data.total_count);
+  }, []);
+
+  const handleDrawStarted = useCallback((data) => {
+    setIsDrawing(true);
+    setCurrentPrize(data.prize_name);
+    setIsWinner(false);
+    setWonPrizeName(null);
+  }, []);
+
+  const handleWinnerAnnounced = useCallback((data) => {
+    setIsDrawing(false);
+
+    // 내 번호가 당첨되었는지 확인
+    const myNumber = parseInt(ticketNumber, 10);
+    if (data.winners && data.winners.includes(myNumber)) {
+      setIsWinner(true);
+      setWonPrizeName(data.prize_name);
+    }
+  }, [ticketNumber]);
+
+  const handleEventReset = useCallback((data) => {
+    if (data.reset_participants) {
+      // 참가자 목록이 리셋되면 다시 등록
+      setTicketNumber(null);
+      setIsWinner(false);
+      setWonPrizeName(null);
+      registerParticipant();
+    }
+    if (data.reset_draws) {
+      setIsDrawing(false);
+      setCurrentPrize(null);
+      setIsWinner(false);
+      setWonPrizeName(null);
+    }
+  }, [registerParticipant]);
+
+  // 초기화 및 WebSocket 연결
+  useEffect(() => {
+    // 참가자 등록
+    registerParticipant();
+
+    // WebSocket 연결
+    luckydrawSocket.connect(DEFAULT_EVENT_ID)
+      .then(() => {
+        setConnectionStatus('connected');
+      })
+      .catch((err) => {
+        console.error('WebSocket 연결 실패:', err);
+        setConnectionStatus('error');
+      });
+
+    // 이벤트 리스너 등록
+    const unsubscribeConnected = luckydrawSocket.on('connected', () => {
+      setConnectionStatus('connected');
+    });
+
+    const unsubscribeDisconnected = luckydrawSocket.on('disconnected', () => {
+      setConnectionStatus('disconnected');
+    });
+
+    const unsubscribeParticipant = luckydrawSocket.on('participant_joined', handleParticipantJoined);
+    const unsubscribeDrawStarted = luckydrawSocket.on('draw_started', handleDrawStarted);
+    const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
+    const unsubscribeReset = luckydrawSocket.on('event_reset', handleEventReset);
+
+    // Cleanup
+    return () => {
+      unsubscribeConnected();
+      unsubscribeDisconnected();
+      unsubscribeParticipant();
+      unsubscribeDrawStarted();
+      unsubscribeWinner();
+      unsubscribeReset();
+      luckydrawSocket.disconnect();
+    };
+  }, [registerParticipant, handleParticipantJoined, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#10062D] via-[#341f97] to-[#c9208a]">
@@ -109,7 +199,20 @@ export default function WaitingPage() {
 
               {/* Status */}
               <AnimatePresence mode="wait">
-                {isDrawing ? (
+                {error ? (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center gap-2 text-red-400"
+                  >
+                    <AlertCircle className="w-5 h-5" />
+                    <span style={{ fontFamily: "Pretendard, sans-serif" }}>
+                      {error}
+                    </span>
+                  </motion.div>
+                ) : isDrawing ? (
                   <motion.div
                     key="drawing"
                     initial={{ opacity: 0 }}
@@ -132,12 +235,19 @@ export default function WaitingPage() {
                     key="winner"
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center justify-center gap-2 text-green-400"
+                    className="flex flex-col items-center gap-2"
                   >
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span style={{ fontFamily: "Pretendard, sans-serif", fontWeight: 700 }}>
-                      🎉 축하합니다! 당첨되셨습니다!
-                    </span>
+                    <div className="flex items-center gap-2 text-green-400">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span style={{ fontFamily: "Pretendard, sans-serif", fontWeight: 700 }}>
+                        🎉 축하합니다! 당첨되셨습니다!
+                      </span>
+                    </div>
+                    {wonPrizeName && (
+                      <span className="text-yellow-300 text-lg font-bold">
+                        {wonPrizeName}
+                      </span>
+                    )}
                   </motion.div>
                 ) : (
                   <motion.div
@@ -146,9 +256,9 @@ export default function WaitingPage() {
                     animate={{ opacity: 1 }}
                     className="flex items-center justify-center gap-2 text-gray-400"
                   >
-                    <Clock className="w-5 h-5" />
+                    <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-400' : connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'}`} />
                     <span style={{ fontFamily: "Pretendard, sans-serif" }}>
-                      추첨 대기 중
+                      {connectionStatus === 'connected' ? '추첨 대기 중' : connectionStatus === 'connecting' ? '연결 중...' : '연결 끊김'}
                     </span>
                   </motion.div>
                 )}
@@ -182,6 +292,11 @@ export default function WaitingPage() {
               💡 이 페이지를 유지해주세요.<br />
               추첨 결과가 실시간으로 표시됩니다.
             </p>
+            {totalParticipants > 0 && (
+              <p className="text-center text-cyan-400 text-sm mt-2" style={{ fontFamily: "Pretendard, sans-serif" }}>
+                현재 참가자: {totalParticipants}명
+              </p>
+            )}
           </div>
         </motion.div>
       </div>

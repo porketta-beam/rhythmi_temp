@@ -26,7 +26,11 @@ docs/
 │   └── DESIGN_SYSTEM.md  # 디자인 시스템 (예정)
 │
 ├── api/                   # API 문서
-│   └── MVP_API_SPEC.md   # MVP API 명세서
+│   ├── MVP_API_SPEC.md   # MVP API 명세서
+│   └── LUCKYDRAW_API_PLAN.md  # 경품 추첨 API 계획 🆕
+│
+├── features/              # 기능 명세서 🆕
+│   └── LUCKYDRAW.md      # 경품 추첨 기능 명세 🆕
 │
 ├── clients/               # 고객사 문서
 │   └── Rythmi.md         # Rythmi 케이스 스터디
@@ -144,7 +148,29 @@ docs/
 
 ---
 
-### 4. 디자인 문서 (design/)
+### 4. 기능 문서 (features/) 🆕
+
+#### 경품 추첨 (Lucky Draw)
+📄 [`features/LUCKYDRAW.md`](./features/LUCKYDRAW.md)
+
+**내용**:
+- 시스템 개요 및 핵심 가치
+- 사용자 플로우 (QR 등록 → 추첨 → 당첨 알림)
+- 파일 구조 및 컴포넌트 설명
+- API 엔드포인트 상세 (참가자/관리자)
+- 현재 구현 상태 및 제한사항
+- 보안 및 성능 고려사항
+- 개발 가이드 및 테스트 예시
+
+**사용 시기**:
+- 경품 추첨 기능 개발/수정 시
+- 실시간 추첨 시스템 이해 시
+- 슬롯머신 UI 구현 참고 시
+- WebSocket 통신 구현 시
+
+---
+
+### 5. 디자인 문서 (design/)
 
 #### 사용자 플로우 (USER_FLOWS.md)
 📄 [`design/USER_FLOWS.md`](./design/USER_FLOWS.md)
@@ -210,7 +236,7 @@ docs/
 
 ---
 
-### 5. 화면 정의서 (screens/)
+### 6. 화면 정의서 (screens/)
 
 #### 화면 정의서 인덱스
 📄 [`screens/README.md`](./screens/README.md)
@@ -365,7 +391,11 @@ API 엔드포인트 및 데이터 구조
 | 로그인 플로우 | [01_ONBOARDING.md](./screens/01_ONBOARDING.md) - SCR-004 |
 | 이벤트 생성 | [02_EVENT_CREATION.md](./screens/02_EVENT_CREATION.md) |
 | 출석 체크 | [USER_FLOWS.md](./design/USER_FLOWS.md) - 플로우 2 |
-| 경품 추첨 | [USER_FLOWS.md](./design/USER_FLOWS.md) - 플로우 3 |
+| 경품 추첨 | [LUCKYDRAW.md](./features/LUCKYDRAW.md) 🆕 |
+| 경품 추첨 API | [LUCKYDRAW_API_PLAN.md](./api/LUCKYDRAW_API_PLAN.md) 🆕 |
+| 경품 추첨 플로우 | [USER_FLOWS.md](./design/USER_FLOWS.md) - 플로우 3 |
+| 슬롯머신 UI | [LUCKYDRAW.md](./features/LUCKYDRAW.md) - 프레젠테이션 페이지 🆕 |
+| 당첨자 알림 | [LUCKYDRAW.md](./features/LUCKYDRAW.md) - WebSocket 예정 🆕 |
 | 데이터베이스 스키마 | [DATA_FLOWS.md](./design/DATA_FLOWS.md) - 핵심 엔티티 |
 | API 명세서 | [MVP_API_SPEC.md](./api/MVP_API_SPEC.md) |
 | API 엔드포인트 | [MVP_API_SPEC.md](./api/MVP_API_SPEC.md) - 전체 API 목록 |
@@ -429,6 +459,7 @@ API 엔드포인트 및 데이터 구조
 
 ### 진행 중 문서 🔄
 - [x] **Rythmi 케이스 스터디** (clients/Rythmi.md) - ✅ Phase 1.5 완료
+- [x] **경품 추첨 기능 명세** (features/LUCKYDRAW.md) - ✅ 기본 문서 완료 🆕
 - [ ] 화면 정의서: 대시보드
 - [ ] 화면 정의서: 출석 체크
 - [ ] 화면 정의서: 경품 추첨
@@ -464,6 +495,14 @@ API 엔드포인트 및 데이터 구조
 ### 진행 중 개발 🔄
 - [ ] Rythmi 케이스 스터디 문서 작성
 - [ ] Rythmi 백엔드 API 연동 (선택)
+- [x] **경품 추첨 백엔드 API 구현** (server/api/luckydraw.py) 🆕
+- [x] **경품 추첨 서비스 레이어 구현** (server/services/luckydraw_service.py) 🆕
+- [x] **경품 추첨 UI 구현** (front/src/app/lottery/) 🆕
+  - 프레젠테이션 페이지 (슬롯머신 애니메이션)
+  - 관리자 페이지 (상품 등록, 추첨 시작)
+  - 참여자 대기 페이지 (행운번호 표시)
+- [ ] **경품 추첨 프론트-백엔드 연동** 🆕
+- [ ] **경품 추첨 WebSocket 실시간 통신** 🆕
 - [ ] 범용 컴포넌트 라이브러리 개발
 - [ ] 디자인 시스템 구축
 
@@ -476,15 +515,17 @@ API 엔드포인트 및 데이터 구조
 
 ---
 
-**문서 버전**: 1.6
-**최종 업데이트**: 2025-11-15
+**문서 버전**: 1.7
+**최종 업데이트**: 2025-11-30
 **관리자**: Documentation Team
 **변경 사항**:
-- **clients/ 디렉토리 추가** - 고객사 케이스 스터디
-- **Rythmi 고객사 섹션 추가** (3. 고객사 문서)
-- 기술 스택 업데이트 (Vite → Next.js 16)
-- Rythmi 구현 완료 항목 추가 (개발 진행 현황)
-- 빠른 검색에 Rythmi 관련 항목 추가
-- 진행 중 문서에 Rythmi 케이스 스터디 추가
+- **features/ 디렉토리 추가** - 기능 명세서 🆕
+- **경품 추첨 (Lucky Draw) 문서 추가** 🆕
+  - features/LUCKYDRAW.md - 기능 명세서
+  - api/LUCKYDRAW_API_PLAN.md - API 계획
+- 문서 구조에 features/ 섹션 추가
+- 빠른 검색에 경품 추첨 관련 항목 추가
+- 개발 진행 현황에 경품 추첨 구현 항목 추가
+- 이전 변경: clients/, Rythmi 고객사 섹션
 
 **관련 문서**: [프로젝트 CLAUDE.md](../CLAUDE.md)

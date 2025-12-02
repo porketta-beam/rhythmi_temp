@@ -51,6 +51,33 @@
 
 **참고 문서**: [`docs/clients/Rythmi.md`](./docs/clients/Rythmi.md)
 
+#### 🎲 경품 추첨 (Lucky Draw)
+**도메인**: 행사장 실시간 경품 추첨
+**구현 상태**: 🔄 진행 중 (`front/src/app/lottery/`)
+**활용 시나리오**: 컨퍼런스, 세미나, 커뮤니티 행사
+
+**주요 기능**:
+- QR 코드 스캔으로 참가자 등록 (3자리 행운번호 발급)
+- 슬롯머신 스타일 추첨 애니메이션
+- 상품별 다회차 추첨 지원
+- 관리자 실시간 추첨 컨트롤
+
+**시스템 구성**:
+| 페이지 | 경로 | 용도 |
+|-------|------|------|
+| 프레젠테이션 | `/lottery` | 행사장 화면 (QR코드, 추첨 결과) |
+| 관리자 | `/lottery/admin` | 상품 등록, 추첨 시작 |
+| 참여자 대기 | `/lottery/waiting` | 행운번호 확인, 당첨 알림 |
+
+**구현 현황**:
+- ✅ 백엔드 API (`/api/luckydraw/*`)
+- ✅ 프론트엔드 UI (슬롯머신, 관리자, 대기 페이지)
+- 🔄 프론트-서버 API 연동
+- ⏳ WebSocket 실시간 통신
+- ⏳ QR 코드 생성
+
+**참고 문서**: [`docs/features/LUCKYDRAW.md`](./docs/features/LUCKYDRAW.md)
+
 ---
 
 ## 🏗 아키텍처
@@ -115,6 +142,10 @@ eventManager/
 │   ├── CLAUDE.md          # 문서 네비게이션 허브
 │   ├── product/           # 제품 문서 (PRD)
 │   ├── design/            # 디자인 문서 (플로우)
+│   ├── features/          # 기능별 상세 문서
+│   │   └── LUCKYDRAW.md   # 🆕 경품 추첨 기능 명세
+│   ├── api/               # API 문서
+│   │   └── LUCKYDRAW_API_PLAN.md  # 경품추첨 API 계획
 │   └── screens/           # 화면 정의서
 │
 ├── server/                # ✅ 백엔드 서버
@@ -138,6 +169,10 @@ eventManager/
     │   │   │       ├── questions/       # 설문 진행 (10문항)
     │   │   │       ├── loading/         # 분석 로딩
     │   │   │       └── result/          # 결과 및 추천
+    │   │   ├── lottery/   # 🆕 경품 추첨 기능
+    │   │   │   ├── page.js            # 프레젠테이션 페이지
+    │   │   │   ├── admin/page.js      # 관리자 페이지
+    │   │   │   └── waiting/page.js    # 참여자 대기 페이지
     │   │   └── list/      # (예정) 메인 페이지
     │   │
     │   ├── contexts/      # ✅ React Context (상태 관리)
@@ -235,6 +270,11 @@ npm run test:coverage
 - [ ] API 명세서 업데이트 (Rythmi 활용 사례 추가)
 - [ ] 디렉토리 구조 세팅 (범용 components, pages)
 - [ ] 화면 정의서 (출석 체크, 경품 추첨)
+- [x] **경품 추첨 (Lucky Draw) 기능** 🆕
+  - ✅ 백엔드 API 구현 (메모리 기반)
+  - ✅ 프론트엔드 UI (슬롯머신, 관리자, 대기 페이지)
+  - 🔄 프론트-서버 API 연동
+  - ⏳ WebSocket 실시간 통신
 
 ### 📝 예정
 - [ ] 디자인 시스템 구축
@@ -294,6 +334,10 @@ chore: 빌드 설정 변경
 
 ### API 문서
 - [MVP API 명세서](./docs/api/MVP_API_SPEC.md)
+- [경품추첨 API 계획](./docs/api/LUCKYDRAW_API_PLAN.md) 🆕
+
+### 기능 문서
+- [경품 추첨 (Lucky Draw)](./docs/features/LUCKYDRAW.md) 🆕
 
 ### 고객사 문서
 - [Rythmi 케이스 스터디](./docs/clients/Rythmi.md)

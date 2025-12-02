@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, RotateCcw, Sparkles, Gift } from 'lucide-react';
 import Image from 'next/image';
@@ -9,7 +9,7 @@ import { SlotDigit } from './SlotDigit';
 import { CelebrationEffect } from './CelebrationEffect';
 import { useIsMobile } from '../ui/use-mobile';
 
-export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawComplete }) {
+export const SlotMachine = forwardRef(function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawComplete, hideControls = false }, ref) {
   const [slotState, setSlotState] = useState('idle');
   const [winningNumber, setWinningNumber] = useState([0, 0, 0]);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -24,11 +24,76 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
     }
   }, [slotState, winningNumber, onDrawComplete]);
 
+  // 외부에서 호출 가능한 메서드 노출
+  useImperativeHandle(ref, () => ({
+    // 서버에서 받은 당첨번호로 추첨 시작
+    triggerDraw: (targetNumber) => {
+      const digits = [
+        Math.floor(targetNumber / 100),
+        Math.floor((targetNumber % 100) / 10),
+        targetNumber % 10,
+      ];
+
+      setSlotState('spinning');
+      setShowCelebration(false);
+      hasCalledComplete.current = false;
+      setWinningNumber(digits);
+
+      setTimeout(() => {
+        setSlotState('stopping');
+        digits.forEach((_, index) => {
+          setTimeout(() => {
+            slotRefs.current[index]?.stop();
+          }, index * 500);
+        });
+
+        setTimeout(() => {
+          setSlotState('winner');
+          setShowCelebration(true);
+        }, 500 * 3 + 1500);
+      }, 3000);
+    },
+    // 스피닝만 시작 (당첨번호 대기 상태)
+    startSpinning: () => {
+      setSlotState('spinning');
+      setShowCelebration(false);
+      hasCalledComplete.current = false;
+    },
+    // 특정 번호로 정지
+    stopAt: (targetNumber) => {
+      const digits = [
+        Math.floor(targetNumber / 100),
+        Math.floor((targetNumber % 100) / 10),
+        targetNumber % 10,
+      ];
+      setWinningNumber(digits);
+      setSlotState('stopping');
+
+      digits.forEach((_, index) => {
+        setTimeout(() => {
+          slotRefs.current[index]?.stop();
+        }, index * 500);
+      });
+
+      setTimeout(() => {
+        setSlotState('winner');
+        setShowCelebration(true);
+      }, 500 * 3 + 1500);
+    },
+    reset: () => {
+      setSlotState('idle');
+      setWinningNumber([0, 0, 0]);
+      setShowCelebration(false);
+      hasCalledComplete.current = false;
+    },
+    getState: () => slotState,
+  }));
+
   const startLottery = () => {
     setSlotState('spinning');
     setShowCelebration(false);
     hasCalledComplete.current = false;
-    
+
     const number = Math.floor(Math.random() * 300);
     const digits = [
       Math.floor(number / 100),
@@ -213,59 +278,61 @@ export function SlotMachine({ onBack, currentPrize, currentPrizeImage, onDrawCom
               ))}
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-center gap-3 sm:gap-4 md:gap-6">
-              <AnimatePresence mode="wait">
-                {slotState === 'idle' && (
-                  <motion.div
-                    key="start"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Button
-                      onClick={startLottery}
-                      className="h-12 sm:h-16 md:h-20 px-6 sm:px-10 md:px-16 text-base sm:text-xl md:text-2xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 border-0 shadow-[0_0_20px_rgba(0,255,255,0.6)] sm:shadow-[0_0_40px_rgba(0,255,255,0.6)] relative overflow-hidden group rounded-xl sm:rounded-2xl"
+            {/* Buttons - hideControls가 true면 숨김 (WebSocket 모드에서 사용) */}
+            {!hideControls && (
+              <div className="flex justify-center gap-3 sm:gap-4 md:gap-6">
+                <AnimatePresence mode="wait">
+                  {slotState === 'idle' && (
+                    <motion.div
+                      key="start"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600"
-                        initial={{ x: '-100%' }}
-                        whileHover={{ x: '100%' }}
-                        transition={{ duration: 0.6 }}
-                      />
-                      <span className="relative z-10 flex items-center gap-2 sm:gap-3">
-                        <Play className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" fill="currentColor" />
-                        추첨 시작
-                      </span>
-                    </Button>
-                  </motion.div>
-                )}
-
-                {slotState === 'winner' && (
-                  <motion.div
-                    key="reset"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex gap-3 sm:gap-4 md:gap-6"
-                  >
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Button
-                        onClick={reset}
-                        className="h-12 sm:h-16 md:h-20 px-6 sm:px-8 md:px-12 text-base sm:text-xl md:text-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border-0 shadow-[0_0_20px_rgba(168,85,247,0.6)] sm:shadow-[0_0_40px_rgba(168,85,247,0.6)] rounded-xl sm:rounded-2xl"
+                        onClick={startLottery}
+                        className="h-12 sm:h-16 md:h-20 px-6 sm:px-10 md:px-16 text-base sm:text-xl md:text-2xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 border-0 shadow-[0_0_20px_rgba(0,255,255,0.6)] sm:shadow-[0_0_40px_rgba(0,255,255,0.6)] relative overflow-hidden group rounded-xl sm:rounded-2xl"
                       >
-                        <span className="flex items-center gap-2 sm:gap-3">
-                          <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
-                          다시 추첨
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600"
+                          initial={{ x: '-100%' }}
+                          whileHover={{ x: '100%' }}
+                          transition={{ duration: 0.6 }}
+                        />
+                        <span className="relative z-10 flex items-center gap-2 sm:gap-3">
+                          <Play className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" fill="currentColor" />
+                          추첨 시작
                         </span>
                       </Button>
                     </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                  )}
+
+                  {slotState === 'winner' && (
+                    <motion.div
+                      key="reset"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex gap-3 sm:gap-4 md:gap-6"
+                    >
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          onClick={reset}
+                          className="h-12 sm:h-16 md:h-20 px-6 sm:px-8 md:px-12 text-base sm:text-xl md:text-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border-0 shadow-[0_0_20px_rgba(168,85,247,0.6)] sm:shadow-[0_0_40px_rgba(168,85,247,0.6)] rounded-xl sm:rounded-2xl"
+                        >
+                          <span className="flex items-center gap-2 sm:gap-3">
+                            <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                            다시 추첨
+                          </span>
+                        </Button>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             {/* Progress */}
             {(slotState === 'spinning' || slotState === 'stopping') && (

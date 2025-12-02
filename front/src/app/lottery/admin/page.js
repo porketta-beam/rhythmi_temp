@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Gift, Plus, Trash2, Play, RotateCcw, Check, 
-  Settings, Users, Trophy, ChevronRight, X, ImagePlus
+import {
+  Gift, Plus, Trash2, Play, RotateCcw, Check,
+  Settings, Users, Trophy, ChevronRight, X, ImagePlus, Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
+import { luckydrawAPI } from '../../../lib/api/luckydraw';
+
+// 기본 이벤트 ID (실제 서비스에서는 URL 파라미터 또는 설정에서 가져옴)
+const DEFAULT_EVENT_ID = "sfs-2025";
 
 export default function AdminPage() {
   const [prizes, setPrizes] = useState([]);
@@ -15,27 +19,50 @@ export default function AdminPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPrize, setNewPrize] = useState({ name: '', description: '', quantity: 1, image: '' });
   const [drawResults, setDrawResults] = useState([]);
-  const [assignedNumbers, setAssignedNumbers] = useState([]);
+  const [participantCount, setParticipantCount] = useState(0);
   const [imagePreview, setImagePreview] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    const storedPrizes = localStorage.getItem('admin_prizes');
-    const storedResults = localStorage.getItem('admin_results');
-    const storedNumbers = localStorage.getItem('assigned_numbers');
-    
-    if (storedPrizes) setPrizes(JSON.parse(storedPrizes));
-    if (storedResults) setDrawResults(JSON.parse(storedResults));
-    if (storedNumbers) setAssignedNumbers(JSON.parse(storedNumbers));
+  // 참가자 수 및 추첨 이력 조회
+  const fetchData = useCallback(async () => {
+    try {
+      const [participantsRes, historyRes] = await Promise.all([
+        luckydrawAPI.getParticipants(DEFAULT_EVENT_ID),
+        luckydrawAPI.getDrawHistory(DEFAULT_EVENT_ID),
+      ]);
+
+      setParticipantCount(participantsRes.totalCount);
+      setDrawResults(historyRes.draws.map(d => ({
+        prizeName: d.prizeName,
+        prizeRank: d.prizeRank,
+        winningNumber: String(d.drawNumber).padStart(3, '0'),
+        timestamp: d.drawnAt,
+      })));
+    } catch (error) {
+      console.error('데이터 조회 실패:', error);
+    }
   }, []);
 
+  // 초기 로드 및 주기적 업데이트
+  useEffect(() => {
+    // localStorage에서 상품 목록 로드 (상품은 로컬에서 관리)
+    const storedPrizes = localStorage.getItem('admin_prizes');
+    if (storedPrizes) setPrizes(JSON.parse(storedPrizes));
+
+    // 서버에서 데이터 로드
+    fetchData();
+
+    // 5초마다 데이터 갱신
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // 상품 목록 로컬 저장
   useEffect(() => {
     localStorage.setItem('admin_prizes', JSON.stringify(prizes));
   }, [prizes]);
-
-  useEffect(() => {
-    localStorage.setItem('admin_results', JSON.stringify(drawResults));
-  }, [drawResults]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -86,30 +113,84 @@ export default function AdminPage() {
     if (selectedPrize === id) setSelectedPrize(null);
   };
 
-  const startDraw = () => {
-    if (!selectedPrize) return;
-    
+  const startDraw = async () => {
+    if (!selectedPrize || isDrawing) return;
+
     const prize = prizes.find(p => p.id === selectedPrize);
     if (!prize || prize.drawn >= prize.quantity) return;
 
-    localStorage.setItem('current_draw', JSON.stringify({
-      isDrawing: true,
-      prizeId: prize.id,
-      prizeName: prize.name,
-      prizeImage: prize.image,
-    }));
+    setIsDrawing(true);
 
-    window.open('/lottery', 'lottery', 'width=1920,height=1080');
+    try {
+      // 1. 애니메이션 시작 알림 (WebSocket 브로드캐스트)
+      await luckydrawAPI.startDrawAnimation(
+        DEFAULT_EVENT_ID,
+        prize.name,
+        prize.drawn + 1,
+        prize.image || null
+      );
+
+      // 2. 프레젠테이션 창 열기 (WebSocket으로 데이터 전달됨)
+      window.open('/lottery', 'lottery', 'width=1920,height=1080');
+
+      // 4. 실제 추첨 실행 (3초 후 - 애니메이션 시간)
+      setTimeout(async () => {
+        try {
+          const result = await luckydrawAPI.draw(
+            DEFAULT_EVENT_ID,
+            prize.name,
+            prize.drawn + 1,
+            1
+          );
+
+          // 상품 추첨 횟수 업데이트
+          setPrizes(prizes.map(p =>
+            p.id === prize.id ? { ...p, drawn: p.drawn + 1 } : p
+          ));
+
+          // 결과 추가
+          setDrawResults(prev => [...prev, {
+            prizeName: result.prizeName,
+            prizeRank: result.prizeRank,
+            winningNumber: String(result.winners[0]).padStart(3, '0'),
+            timestamp: result.drawnAt,
+          }]);
+
+        } catch (error) {
+          console.error('추첨 실패:', error);
+          alert(error.message || '추첨에 실패했습니다.');
+        } finally {
+          setIsDrawing(false);
+        }
+      }, 3000);
+
+    } catch (error) {
+      console.error('추첨 시작 실패:', error);
+      alert(error.message || '추첨 시작에 실패했습니다.');
+      setIsDrawing(false);
+    }
   };
 
-  const resetAll = () => {
-    if (confirm('모든 추첨 결과와 할당된 번호를 초기화하시겠습니까?')) {
+  const resetAll = async () => {
+    if (!confirm('모든 추첨 결과와 참가자를 초기화하시겠습니까?')) return;
+
+    setIsLoading(true);
+
+    try {
+      // 서버 리셋 (참가자 + 추첨 이력)
+      await luckydrawAPI.reset(DEFAULT_EVENT_ID, true, true);
+
+      // 로컬 상태 리셋
       setDrawResults([]);
-      setAssignedNumbers([]);
+      setParticipantCount(0);
       setPrizes(prizes.map(p => ({ ...p, drawn: 0 })));
-      localStorage.removeItem('admin_results');
-      localStorage.removeItem('assigned_numbers');
-      localStorage.removeItem('current_draw');
+
+      alert('초기화가 완료되었습니다.');
+    } catch (error) {
+      console.error('리셋 실패:', error);
+      alert(error.message || '초기화에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -140,8 +221,13 @@ export default function AdminPage() {
               onClick={resetAll}
               variant="outline"
               className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+              disabled={isLoading}
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-2" />
+              )}
               전체 리셋
             </Button>
           </div>
@@ -250,12 +336,21 @@ export default function AdminPage() {
 
                   <Button
                     onClick={startDraw}
-                    disabled={selectedPrizeData.drawn >= selectedPrizeData.quantity}
+                    disabled={selectedPrizeData.drawn >= selectedPrizeData.quantity || isDrawing}
                     className="w-full h-14 text-lg bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 disabled:opacity-50"
                   >
-                    <Play className="w-5 h-5 mr-2" fill="currentColor" />
-                    추첨 시작하기
-                    <ChevronRight className="w-5 h-5 ml-2" />
+                    {isDrawing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        추첨 진행 중...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-5 h-5 mr-2" fill="currentColor" />
+                        추첨 시작하기
+                        <ChevronRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
                   </Button>
 
                   {selectedPrizeData.drawn >= selectedPrizeData.quantity && (
@@ -308,7 +403,7 @@ export default function AdminPage() {
                 참가자 현황
               </h2>
               <div className="text-center py-4">
-                <p className="text-4xl font-bold text-white mb-1">{assignedNumbers.length}</p>
+                <p className="text-4xl font-bold text-white mb-1">{participantCount}</p>
                 <p className="text-sm text-gray-400">명 참가</p>
               </div>
             </div>
