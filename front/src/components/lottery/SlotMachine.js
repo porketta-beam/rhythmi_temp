@@ -367,5 +367,5 @@ export const SlotMachine = forwardRef(function SlotMachine({ onBack, currentPriz
       </AnimatePresence>
     </div>
   );
-}
+});
 
