@@ -3,71 +3,106 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, Gift, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import ConsentForm from '../../../components/lottery/ConsentForm';
+import PersonalInfoForm from '../../../components/lottery/PersonalInfoForm';
 import { luckydrawAPI } from '../../../lib/api/luckydraw';
 import { luckydrawSocket } from '../../../lib/websocket/luckydrawSocket';
-import { DEFAULT_EVENT_ID, CONNECTION_STATUS } from '../../../lib/lottery/constants';
+import { DEFAULT_EVENT_ID } from '../../../lib/lottery/constants';
 import { padNumber } from '../../../lib/lottery/utils';
 
+/**
+ * WaitingPage - 참가자 대기 페이지
+ *
+ * 3단계 플로우:
+ * 1. consent - 개인정보 수집 동의
+ * 2. personal - 이름/연락처 입력
+ * 3. waiting - 추첨 대기 및 결과 확인
+ */
 export default function WaitingPage() {
-  // 서버에서 발급받은 번호를 useState로 관리 (sessionStorage에도 백업)
-  // SSR hydration 불일치 방지: 초기값은 null, useEffect에서 로드
+  // 단계 상태: consent → personal → waiting
+  const [step, setStep] = useState('consent');
+
+  // 개인정보 상태 (메모리 + sessionStorage 백업)
+  const [personalInfo, setPersonalInfo] = useState(null);
+
+  // 서버에서 발급받은 번호
   const [ticketNumber, setTicketNumber] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Hydration 완료 후 sessionStorage에서 기존 번호 로드
-  useEffect(() => {
-    // IIFE로 비동기 컨텍스트 분리 (React 19 린트 규칙 준수)
-    (() => {
-      const storedNumber = sessionStorage.getItem('ticketNumber');
-      if (storedNumber) {
-        setTicketNumber(storedNumber);
-      }
-      setIsHydrated(true);
-    })();
-  }, []);
+  // 추첨 상태
   const [currentPrize, setCurrentPrize] = useState(null);
-  const [isStandby, setIsStandby] = useState(false); // 대기 상태
+  const [isStandby, setIsStandby] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
   const [wonPrizeName, setWonPrizeName] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('connecting'); // connecting, connected, disconnected, error
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [error, setError] = useState(null);
   const [totalParticipants, setTotalParticipants] = useState(0);
 
-  // 참가자 등록 Effect (hydration 완료 후 실행)
+  // Hydration 완료 후 sessionStorage에서 기존 데이터 로드
   useEffect(() => {
-    // hydration 완료 전이면 대기
-    if (!isHydrated) return;
-    // 이미 번호가 있으면 서버 등록 스킵
-    if (ticketNumber) return;
+    (() => {
+      const storedNumber = sessionStorage.getItem('ticketNumber');
+      const storedInfo = sessionStorage.getItem('personalInfo');
+      const storedStep = sessionStorage.getItem('waitingStep');
 
-    let isMounted = true;
-
-    (async () => {
-      try {
-        const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
-        if (!isMounted) return; // 언마운트 시 setState 방지
-
-        const newNumber = padNumber(result.drawNumber);
-        sessionStorage.setItem('ticketNumber', newNumber);
-        setTicketNumber(newNumber);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-        console.error('참가자 등록 실패:', err);
-        setError(err.message || '등록에 실패했습니다');
+      if (storedNumber) {
+        setTicketNumber(storedNumber);
       }
-    })();
+      if (storedInfo) {
+        try {
+          setPersonalInfo(JSON.parse(storedInfo));
+        } catch (e) {
+          console.error('personalInfo 파싱 실패:', e);
+        }
+      }
+      if (storedStep && ['consent', 'personal', 'waiting'].includes(storedStep)) {
+        setStep(storedStep);
+      }
 
-    return () => { isMounted = false; };
-  }, [isHydrated, ticketNumber]);
+      setIsHydrated(true);
+    })();
+  }, []);
+
+  // 동의 완료 핸들러
+  const handleConsent = useCallback(() => {
+    setStep('personal');
+    sessionStorage.setItem('waitingStep', 'personal');
+  }, []);
+
+  // 개인정보 입력 완료 핸들러
+  const handlePersonalInfoSubmit = useCallback(async (info) => {
+    setPersonalInfo(info);
+    sessionStorage.setItem('personalInfo', JSON.stringify(info));
+
+    // 서버에 참가자 등록
+    try {
+      const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
+      const newNumber = padNumber(result.drawNumber);
+      sessionStorage.setItem('ticketNumber', newNumber);
+      setTicketNumber(newNumber);
+      setError(null);
+
+      // waiting 단계로 이동
+      setStep('waiting');
+      sessionStorage.setItem('waitingStep', 'waiting');
+    } catch (err) {
+      console.error('참가자 등록 실패:', err);
+      setError(err.message || '등록에 실패했습니다');
+    }
+  }, []);
+
+  // 뒤로가기 핸들러
+  const handleBack = useCallback(() => {
+    setStep('consent');
+    sessionStorage.setItem('waitingStep', 'consent');
+  }, []);
 
   // WebSocket 이벤트 핸들러
   const handleParticipantJoined = useCallback((data) => {
     setTotalParticipants(data.total_count);
   }, []);
 
-  // 추첨 대기 이벤트 처리 (신규)
   const handleDrawStandby = useCallback((data) => {
     console.log('[Waiting] draw_standby:', data);
     setCurrentPrize(data.prize_name);
@@ -85,6 +120,7 @@ export default function WaitingPage() {
     setWonPrizeName(null);
   }, []);
 
+  // 당첨자 발표 핸들러 (당첨 시 개인정보 서버 전송)
   const handleWinnerAnnounced = useCallback((data) => {
     setIsDrawing(false);
 
@@ -93,14 +129,34 @@ export default function WaitingPage() {
     if (data.winners && data.winners.includes(myNumber)) {
       setIsWinner(true);
       setWonPrizeName(data.prize_name);
+
+      // 당첨 시 개인정보 서버로 전송
+      if (personalInfo) {
+        luckydrawSocket.send('submit_winner_info', {
+          event_id: DEFAULT_EVENT_ID,
+          draw_number: myNumber,
+          prize_name: data.prize_name,
+          name: personalInfo.name,
+          phone: personalInfo.phone,
+        });
+        console.log('[Waiting] 당첨자 정보 전송:', {
+          draw_number: myNumber,
+          prize_name: data.prize_name,
+          name: personalInfo.name,
+        });
+      }
     }
-  }, [ticketNumber]);
+  }, [ticketNumber, personalInfo]);
 
   const handleEventReset = useCallback((data) => {
     if (data.reset_participants) {
-      // 참가자 목록이 리셋되면 번호 삭제 (useEffect가 자동으로 재등록)
+      // 참가자 목록이 리셋되면 처음으로
       sessionStorage.removeItem('ticketNumber');
+      sessionStorage.removeItem('personalInfo');
+      sessionStorage.removeItem('waitingStep');
       setTicketNumber(null);
+      setPersonalInfo(null);
+      setStep('consent');
       setIsWinner(false);
       setWonPrizeName(null);
     }
@@ -114,7 +170,6 @@ export default function WaitingPage() {
 
   // WebSocket 연결 및 이벤트 리스너 등록
   useEffect(() => {
-    // WebSocket 연결
     luckydrawSocket.connect(DEFAULT_EVENT_ID)
       .then(() => {
         setConnectionStatus('connected');
@@ -124,7 +179,6 @@ export default function WaitingPage() {
         setConnectionStatus('error');
       });
 
-    // 이벤트 리스너 등록
     const unsubscribeConnected = luckydrawSocket.on('connected', () => {
       setConnectionStatus('connected');
     });
@@ -139,7 +193,6 @@ export default function WaitingPage() {
     const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
     const unsubscribeReset = luckydrawSocket.on('event_reset', handleEventReset);
 
-    // Cleanup
     return () => {
       unsubscribeConnected();
       unsubscribeDisconnected();
@@ -152,6 +205,25 @@ export default function WaitingPage() {
     };
   }, [handleParticipantJoined, handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
 
+  // Hydration 대기 중
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // 단계별 렌더링
+  if (step === 'consent') {
+    return <ConsentForm onConsent={handleConsent} />;
+  }
+
+  if (step === 'personal') {
+    return <PersonalInfoForm onSubmit={handlePersonalInfoSubmit} onBack={handleBack} />;
+  }
+
+  // step === 'waiting'
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -197,14 +269,14 @@ export default function WaitingPage() {
               </div>
 
               {/* Title */}
-              <h2 
+              <h2
                 className="text-center text-xl sm:text-2xl text-white mb-2"
                 style={{ fontFamily: "Pretendard, sans-serif", fontWeight: 700 }}
               >
                 나의 추첨 번호
               </h2>
               <p className="text-center text-gray-400 text-sm mb-6">
-                추첨이 시작되면 결과를 확인하세요!
+                {personalInfo?.name}님, 추첨이 시작되면 결과를 확인하세요!
               </p>
 
               {/* Ticket Number Display */}
@@ -224,7 +296,7 @@ export default function WaitingPage() {
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <span 
+                      <span
                         className="text-4xl sm:text-5xl bg-gradient-to-b from-cyan-400 to-purple-400 bg-clip-text text-transparent"
                         style={{ fontFamily: "'Orbitron', monospace", fontWeight: 900 }}
                       >
@@ -346,4 +418,3 @@ export default function WaitingPage() {
     </div>
   );
 }
-

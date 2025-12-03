@@ -304,6 +304,27 @@ class LuckyDrawAPI {
   }
 
   /**
+   * 당첨자 정보 목록 조회
+   *
+   * @param {string} eventId - 이벤트 ID
+   * @returns {Promise<{winners: Array, totalCount: number}>}
+   */
+  async getWinners(eventId) {
+    const result = await this._request(`/admin/${encodeURIComponent(eventId)}/winners`);
+
+    return {
+      totalCount: result.data.total_count,
+      winners: result.data.winners.map((w) => ({
+        drawNumber: w.draw_number,
+        prizeName: w.prize_name,
+        name: w.name,
+        phone: w.phone,  // 서버에서 마스킹됨 (010-****-5678)
+        submittedAt: w.submitted_at,
+      })),
+    };
+  }
+
+  /**
    * 이벤트 리셋
    *
    * @param {string} eventId - 이벤트 ID

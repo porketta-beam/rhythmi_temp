@@ -41,6 +41,16 @@ class DrawRecord:
 
 
 @dataclass
+class WinnerInfo:
+    """당첨자 개인정보"""
+    draw_number: int
+    prize_name: str
+    name: str
+    phone: str
+    submitted_at: str
+
+
+@dataclass
 class PendingDraw:
     """대기 중인 추첨 결과 (결과 발표 전까지 보관)"""
     prize_name: str
@@ -57,6 +67,7 @@ class EventData:
     """이벤트별 데이터"""
     participants: Dict[str, Participant] = field(default_factory=dict)
     draws: List[DrawRecord] = field(default_factory=list)
+    winners_info: List[WinnerInfo] = field(default_factory=list)  # 당첨자 개인정보
     next_draw_number: int = 1
     pending_draw: Optional[PendingDraw] = None  # 결과 발표 대기 중인 추첨
 
@@ -633,6 +644,121 @@ class LuckyDrawService:
             }
             for draw in event_data.draws
         ]
+
+    # ============================================================
+    # 당첨자 정보 관련 메서드
+    # ============================================================
+
+    async def submit_winner_info(
+        self,
+        event_id: str,
+        draw_number: int,
+        prize_name: str,
+        name: str,
+        phone: str
+    ) -> Dict:
+        """
+        당첨자 개인정보 제출
+
+        Args:
+            event_id: 이벤트 ID
+            draw_number: 당첨 번호
+            prize_name: 상품 이름
+            name: 당첨자 이름
+            phone: 당첨자 연락처 (010-1234-5678 형식)
+
+        Returns:
+            {"success": True, "message": str}
+        """
+        lock = self._get_lock(event_id)
+        event_data = self._get_event_data(event_id)
+
+        async with lock:
+            # 중복 제출 체크
+            existing = next(
+                (w for w in event_data.winners_info
+                 if w.draw_number == draw_number and w.prize_name == prize_name),
+                None
+            )
+            if existing:
+                logger.info(
+                    f"[당첨자 정보 중복] event_id={event_id}, "
+                    f"draw_number={draw_number}, prize_name={prize_name}"
+                )
+                return {"success": True, "message": "이미 제출된 정보입니다."}
+
+            # 당첨자 정보 저장
+            winner_info = WinnerInfo(
+                draw_number=draw_number,
+                prize_name=prize_name,
+                name=name,
+                phone=phone,
+                submitted_at=datetime.now().isoformat()
+            )
+            event_data.winners_info.append(winner_info)
+
+            logger.info(
+                f"[당첨자 정보 제출] event_id={event_id}, "
+                f"draw_number={draw_number}, prize_name={prize_name}, "
+                f"name={name}"
+            )
+
+        # Admin에 당첨자 정보 알림 브로드캐스트
+        await self.connection_manager.broadcast(event_id, {
+            "type": "winner_info_received",
+            "draw_number": draw_number,
+            "prize_name": prize_name,
+            "name": name,
+            "phone": self._mask_phone(phone),  # 마스킹된 연락처
+            "submitted_at": winner_info.submitted_at
+        })
+
+        return {"success": True, "message": "당첨자 정보가 제출되었습니다."}
+
+    def get_winners_info(self, event_id: str) -> List[Dict]:
+        """
+        당첨자 정보 목록 조회 (Admin용)
+
+        Args:
+            event_id: 이벤트 ID
+
+        Returns:
+            List[{
+                "draw_number": int,
+                "prize_name": str,
+                "name": str,
+                "phone": str,  # 마스킹된 연락처
+                "submitted_at": str
+            }]
+        """
+        event_data = self._get_event_data(event_id)
+
+        return [
+            {
+                "draw_number": w.draw_number,
+                "prize_name": w.prize_name,
+                "name": w.name,
+                "phone": self._mask_phone(w.phone),
+                "submitted_at": w.submitted_at
+            }
+            for w in event_data.winners_info
+        ]
+
+    @staticmethod
+    def _mask_phone(phone: str) -> str:
+        """
+        전화번호 마스킹 (010-1234-5678 → 010-****-5678)
+
+        Args:
+            phone: 원본 전화번호
+
+        Returns:
+            마스킹된 전화번호
+        """
+        parts = phone.split('-')
+        if len(parts) == 3:
+            return f"{parts[0]}-****-{parts[2]}"
+        return phone
 
     # ============================================================
     # 리셋 관련 메서드

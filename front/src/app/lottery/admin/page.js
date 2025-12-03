@@ -45,6 +45,7 @@ export default function AdminPage() {
   });
   const [drawResults, setDrawResults] = useState([]);
   const [participantCount, setParticipantCount] = useState(0);
+  const [winnersInfo, setWinnersInfo] = useState([]);  // 당첨자 개인정보
   const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false); // 슬롯 회전 중
@@ -67,12 +68,13 @@ export default function AdminPage() {
     standbyPrizeIdRef.current = standbyPrizeId;
   }, [standbyPrizeId]);
 
-  // 참가자 수 및 추첨 이력 조회
+  // 참가자 수, 추첨 이력, 당첨자 정보 조회
   const fetchData = useCallback(async () => {
     try {
-      const [participantsRes, historyRes] = await Promise.all([
+      const [participantsRes, historyRes, winnersRes] = await Promise.all([
         luckydrawAPI.getParticipants(DEFAULT_EVENT_ID),
         luckydrawAPI.getDrawHistory(DEFAULT_EVENT_ID),
+        luckydrawAPI.getWinners(DEFAULT_EVENT_ID),
       ]);
 
       setParticipantCount(participantsRes.totalCount);
@@ -82,6 +84,7 @@ export default function AdminPage() {
         winningNumber: padNumber(d.drawNumber),
         timestamp: d.drawnAt,
       })));
+      setWinnersInfo(winnersRes.winners);
     } catch (error) {
       console.error('데이터 조회 실패:', error);
     }
@@ -133,6 +136,28 @@ export default function AdminPage() {
           setIsWaitingReveal(false);
           setIsStandby(false);
           setStandbyPrizeId(null);
+        }
+
+        // 당첨자 개인정보 수신
+        if (data.type === 'winner_info_received') {
+          const { draw_number, prize_name, name, phone, submitted_at } = data;
+          console.log('[Admin WS] 당첨자 정보 수신:', name, phone);
+
+          // 중복 체크 후 추가
+          setWinnersInfo(prev => {
+            const exists = prev.some(
+              w => w.drawNumber === draw_number && w.prizeName === prize_name
+            );
+            if (exists) return prev;
+
+            return [...prev, {
+              drawNumber: draw_number,
+              prizeName: prize_name,
+              name,
+              phone,
+              submittedAt: submitted_at,
+            }];
+          });
         }
       } catch (error) {
         console.error('[Admin WS] 메시지 파싱 에러:', error);
@@ -721,6 +746,45 @@ export default function AdminPage() {
                 <p className="text-4xl font-bold text-white mb-1">{participantCount}</p>
                 <p className="text-sm text-gray-400">명 참가</p>
               </div>
+            </div>
+
+            {/* 당첨자 정보 */}
+            <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-6">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-pink-400" />
+                당첨자 정보
+                {winnersInfo.length > 0 && (
+                  <span className="ml-auto px-2 py-0.5 text-xs rounded-full bg-pink-500/20 text-pink-400">
+                    {winnersInfo.length}명
+                  </span>
+                )}
+              </h2>
+
+              {winnersInfo.length === 0 ? (
+                <p className="text-center py-6 text-gray-500 text-sm">
+                  아직 당첨자 정보가 없습니다.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {[...winnersInfo].reverse().map((winner, index) => (
+                    <div
+                      key={`${winner.drawNumber}-${winner.prizeName}-${index}`}
+                      className="p-3 rounded-lg bg-gray-900/50 border border-gray-700/30"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-white">{winner.name}</span>
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-500/20 text-cyan-400 font-bold">
+                          {padNumber(winner.drawNumber)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400">{winner.phone}</span>
+                        <span className="text-gray-500">{winner.prizeName}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

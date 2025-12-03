@@ -526,6 +526,45 @@ async def get_draw_history(event_id: str):
         )
 
 
+@router.get(
+    "/admin/{event_id}/winners",
+    summary="당첨자 정보 목록 조회",
+    description="당첨자들의 개인정보 목록 조회 (연락처 마스킹)"
+)
+async def get_winners_info(event_id: str):
+    """
+    당첨자 정보 목록 조회 API
+
+    **응답**:
+    - winners: 당첨자 정보 목록
+      - draw_number: 당첨 번호
+      - prize_name: 상품 이름
+      - name: 당첨자 이름
+      - phone: 연락처 (마스킹: 010-****-5678)
+      - submitted_at: 제출 시간
+    """
+    try:
+        service = get_luckydraw_service()
+        winners = service.get_winners_info(event_id)
+        return {
+            "success": True,
+            "data": {
+                "winners": winners,
+                "total_count": len(winners)
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "서버 내부 에러가 발생했습니다"
+            }
+        )
+
+
 # ============================================================
 # WebSocket 엔드포인트
 # ============================================================
@@ -595,6 +634,39 @@ async def websocket_luckydraw(websocket: WebSocket, event_id: str):
                     logger.error(f"[WS] draw_complete 처리 오류: {e}")
                     await websocket.send_json({
                         "type": "draw_complete_ack",
+                        "success": False,
+                        "error": "서버 오류"
+                    })
+
+            # submit_winner_info: 당첨자가 개인정보 제출
+            elif msg_type == "submit_winner_info":
+                logger.info(f"[WS] submit_winner_info 수신: event_id={event_id}")
+                try:
+                    service = get_luckydraw_service()
+                    result = await service.submit_winner_info(
+                        event_id=data.get("event_id", event_id),
+                        draw_number=data.get("draw_number"),
+                        prize_name=data.get("prize_name"),
+                        name=data.get("name"),
+                        phone=data.get("phone")
+                    )
+                    # 성공 응답
+                    await websocket.send_json({
+                        "type": "submit_winner_info_ack",
+                        "success": True,
+                        "message": result.get("message", "제출 완료")
+                    })
+                except ValueError as e:
+                    logger.error(f"[WS] submit_winner_info 처리 실패: {e}")
+                    await websocket.send_json({
+                        "type": "submit_winner_info_ack",
+                        "success": False,
+                        "error": str(e)
+                    })
+                except Exception as e:
+                    logger.error(f"[WS] submit_winner_info 처리 오류: {e}")
+                    await websocket.send_json({
+                        "type": "submit_winner_info_ack",
                         "success": False,
                         "error": "서버 오류"
                     })
