@@ -24,26 +24,31 @@ export default function WaitingPage() {
   const [error, setError] = useState(null);
   const [totalParticipants, setTotalParticipants] = useState(0);
 
-  // 참가자 등록 및 번호 발급
-  const registerParticipant = useCallback(async () => {
-    // 이미 번호가 있으면 재등록 스킵
-    const existingNumber = sessionStorage.getItem('ticketNumber');
-    if (existingNumber) {
-      setTicketNumber(existingNumber);
-      return;
-    }
+  // 참가자 등록 Effect (비동기 콜백에서만 setState 호출)
+  useEffect(() => {
+    // 이미 번호가 있으면 서버 등록 스킵
+    if (ticketNumber) return;
 
-    try {
-      const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
-      const newNumber = String(result.drawNumber).padStart(3, '0');
-      setTicketNumber(newNumber);
-      sessionStorage.setItem('ticketNumber', newNumber); // 백업 저장
-      setError(null);
-    } catch (err) {
-      console.error('참가자 등록 실패:', err);
-      setError(err.message || '등록에 실패했습니다');
-    }
-  }, []);
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
+        if (!isMounted) return; // 언마운트 시 setState 방지
+
+        const newNumber = String(result.drawNumber).padStart(3, '0');
+        sessionStorage.setItem('ticketNumber', newNumber);
+        setTicketNumber(newNumber);
+        setError(null);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('참가자 등록 실패:', err);
+        setError(err.message || '등록에 실패했습니다');
+      }
+    })();
+
+    return () => { isMounted = false; };
+  }, [ticketNumber]);
 
   // WebSocket 이벤트 핸들러
   const handleParticipantJoined = useCallback((data) => {
@@ -70,12 +75,11 @@ export default function WaitingPage() {
 
   const handleEventReset = useCallback((data) => {
     if (data.reset_participants) {
-      // 참가자 목록이 리셋되면 번호 삭제 후 재등록
+      // 참가자 목록이 리셋되면 번호 삭제 (useEffect가 자동으로 재등록)
       sessionStorage.removeItem('ticketNumber');
       setTicketNumber(null);
       setIsWinner(false);
       setWonPrizeName(null);
-      registerParticipant();
     }
     if (data.reset_draws) {
       setIsDrawing(false);
@@ -83,13 +87,10 @@ export default function WaitingPage() {
       setIsWinner(false);
       setWonPrizeName(null);
     }
-  }, [registerParticipant]);
+  }, []);
 
-  // 초기화 및 WebSocket 연결
+  // WebSocket 연결 및 이벤트 리스너 등록
   useEffect(() => {
-    // 참가자 등록
-    registerParticipant();
-
     // WebSocket 연결
     luckydrawSocket.connect(DEFAULT_EVENT_ID)
       .then(() => {
@@ -124,7 +125,7 @@ export default function WaitingPage() {
       unsubscribeReset();
       luckydrawSocket.disconnect();
     };
-  }, [registerParticipant, handleParticipantJoined, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
+  }, [handleParticipantJoined, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#10062D] via-[#341f97] to-[#c9208a]">
