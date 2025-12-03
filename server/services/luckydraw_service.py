@@ -48,6 +48,8 @@ class PendingDraw:
     prize_image: Optional[str]
     winners: List[int]
     drawn_at: str
+    draw_mode: str = "slot"  # 추첨 모드 (slot, card, network)
+    winner_count: int = 1     # 당첨자 수
 
 
 @dataclass
@@ -364,7 +366,9 @@ class LuckyDrawService:
         event_id: str,
         prize_name: str,
         prize_rank: int,
-        prize_image: Optional[str] = None
+        prize_image: Optional[str] = None,
+        draw_mode: str = "slot",
+        winner_count: int = 1
     ) -> None:
         """
         추첨 대기 브로드캐스트
@@ -377,17 +381,22 @@ class LuckyDrawService:
             prize_name: 상품 이름
             prize_rank: 상품 등급
             prize_image: 상품 이미지 URL (선택)
+            draw_mode: 추첨 모드 (slot, card, network)
+            winner_count: 당첨자 수
         """
         await self.connection_manager.broadcast(event_id, {
             "type": "draw_standby",
             "prize_name": prize_name,
             "prize_rank": prize_rank,
             "prize_image": prize_image,
+            "draw_mode": draw_mode,
+            "winner_count": winner_count,
             "status": "standby"
         })
 
         logger.info(
-            f"[추첨 대기] event_id={event_id}, prize_name={prize_name}"
+            f"[추첨 대기] event_id={event_id}, prize_name={prize_name}, "
+            f"mode={draw_mode}, winner_count={winner_count}"
         )
 
     async def start_draw_animation(
@@ -395,7 +404,9 @@ class LuckyDrawService:
         event_id: str,
         prize_name: str,
         prize_rank: int,
-        prize_image: Optional[str] = None
+        prize_image: Optional[str] = None,
+        draw_mode: str = "slot",
+        winner_count: int = 1
     ) -> Dict:
         """
         추첨 시작: 실제 추첨 실행 + 결과 임시 저장 + 애니메이션 시작 브로드캐스트
@@ -407,10 +418,24 @@ class LuckyDrawService:
             prize_name: 상품 이름
             prize_rank: 상품 등급
             prize_image: 상품 이미지 URL (선택)
+            draw_mode: 추첨 모드 (slot, card, network)
+            winner_count: 당첨자 수
 
         Returns:
             {"success": True, "message": str}
         """
+        # 모드별 당첨자 수 제한 검증
+        mode_limits = {
+            "slot": (1, 1),      # 고정 1명
+            "card": (1, 5),      # 1~5명
+            "network": (1, 10)   # 1~10명
+        }
+        min_count, max_count = mode_limits.get(draw_mode, (1, 1))
+        if winner_count < min_count or winner_count > max_count:
+            raise ValueError(
+                f"{draw_mode} 모드에서는 {min_count}~{max_count}명만 추첨 가능합니다."
+            )
+
         lock = self._get_lock(event_id)
         event_data = self._get_event_data(event_id)
 
@@ -419,11 +444,10 @@ class LuckyDrawService:
             if not event_data.participants:
                 raise ValueError("참가자가 없습니다. 추첨을 진행할 수 없습니다.")
 
-            # 이미 당첨된 번호 목록 (해당 등급에서)
+            # 이미 당첨된 번호 목록 (모든 추첨에서)
             existing_winners = {
                 draw.draw_number
                 for draw in event_data.draws
-                if draw.prize_rank == prize_rank
             }
 
             # 추첨 가능한 번호 목록
@@ -434,13 +458,16 @@ class LuckyDrawService:
             ]
 
             if not available_numbers:
+                raise ValueError("추첨 가능한 참가자가 없습니다. (모두 이미 당첨되었습니다)")
+
+            if len(available_numbers) < winner_count:
                 raise ValueError(
-                    f"추첨 가능한 참가자가 없습니다. "
-                    f"(이미 {prize_rank}등 상에 당첨된 참가자만 남았습니다)"
+                    f"추첨 가능한 참가자({len(available_numbers)}명)가 "
+                    f"요청한 당첨자 수({winner_count}명)보다 적습니다."
                 )
 
-            # 랜덤 추첨 (1명)
-            selected_number = random.choice(available_numbers)
+            # 랜덤 추첨 (winner_count명)
+            selected_numbers = random.sample(available_numbers, winner_count)
             drawn_at = datetime.now().isoformat()
 
             # 결과를 pending_draw에 임시 저장 (아직 draws에 기록 안 함)
@@ -448,14 +475,16 @@ class LuckyDrawService:
                 prize_name=prize_name,
                 prize_rank=prize_rank,
                 prize_image=prize_image,
-                winners=[selected_number],
-                drawn_at=drawn_at
+                winners=selected_numbers,
+                drawn_at=drawn_at,
+                draw_mode=draw_mode,
+                winner_count=winner_count
             )
 
             logger.info(
                 f"[추첨 실행] event_id={event_id}, "
-                f"prize_name={prize_name}, "
-                f"winner={selected_number} (미공개)"
+                f"prize_name={prize_name}, mode={draw_mode}, "
+                f"winners={selected_numbers} (미공개)"
             )
 
         # 애니메이션 시작 브로드캐스트 (당첨번호는 포함하지 않음)
@@ -463,11 +492,14 @@ class LuckyDrawService:
             "type": "draw_started",
             "prize_name": prize_name,
             "prize_rank": prize_rank,
-            "prize_image": prize_image
+            "prize_image": prize_image,
+            "draw_mode": draw_mode,
+            "winner_count": winner_count
         })
 
         logger.info(
-            f"[추첨 애니메이션 시작] event_id={event_id}, prize_name={prize_name}"
+            f"[추첨 애니메이션 시작] event_id={event_id}, prize_name={prize_name}, "
+            f"mode={draw_mode}, winner_count={winner_count}"
         )
 
         return {"success": True, "message": "추첨이 완료되었습니다. 결과 발표를 진행해주세요."}
@@ -499,7 +531,9 @@ class LuckyDrawService:
             "prize_rank": pending.prize_rank,
             "prize_image": pending.prize_image,
             "winners": pending.winners,
-            "drawn_at": pending.drawn_at
+            "drawn_at": pending.drawn_at,
+            "draw_mode": pending.draw_mode,
+            "winner_count": pending.winner_count
         })
 
         logger.info(
@@ -562,7 +596,9 @@ class LuckyDrawService:
             "prize_rank": pending.prize_rank,
             "prize_image": pending.prize_image,
             "winners": pending.winners,
-            "drawn_at": pending.drawn_at
+            "drawn_at": pending.drawn_at,
+            "draw_mode": pending.draw_mode,
+            "winner_count": pending.winner_count
         })
 
         return {

@@ -14,7 +14,7 @@ import * as THREE from 'three';
 export default function NetworkGraph3D({
   participants = [],
   phase = 'idle',
-  winnerId = null,
+  winnerIds = [], // 다중 당첨자 지원
   bgRotation = true, // 배경 구체 회전 여부
   nodeRotation = false, // 노드 회전 여부 (카메라 공전)
 }) {
@@ -32,12 +32,15 @@ export default function NetworkGraph3D({
       return { nodes: [], links: [] };
     }
 
+    // winnerIds를 Set으로 변환하여 빠른 조회
+    const winnerIdSet = new Set(winnerIds);
+
     // 노드 생성
     const nodes = participants.map((p) => ({
       id: p.id,
       luckyNumber: p.luckyNumber,
       name: p.name || null,
-      isWinner: p.id === winnerId,
+      isWinner: winnerIdSet.has(p.id),
     }));
 
     // 링크 생성 (인접 2개 + 결정적 추가 연결)
@@ -84,7 +87,7 @@ export default function NetworkGraph3D({
     });
 
     return { nodes, links };
-  }, [participants, winnerId]);
+  }, [participants, winnerIds]);
 
   // 배경 구체 생성 (1회만)
   useEffect(() => {
@@ -243,10 +246,10 @@ export default function NetworkGraph3D({
     }
   }, [participants.length]);
 
-  // 당첨자 선정 시 카메라 포커스
+  // 당첨자 선정 시 카메라 포커스 (첫 번째 당첨자 기준)
   useEffect(() => {
-    if (fgRef.current && winnerId) {
-      const winnerNode = graphData.nodes.find((n) => n.id === winnerId);
+    if (fgRef.current && winnerIds.length > 0) {
+      const winnerNode = graphData.nodes.find((n) => n.id === winnerIds[0]);
       if (winnerNode && winnerNode.x !== undefined) {
         fgRef.current.cameraPosition(
           { x: winnerNode.x * 0.5, y: winnerNode.y * 0.5, z: 180 },
@@ -255,7 +258,7 @@ export default function NetworkGraph3D({
         );
       }
     }
-  }, [winnerId, graphData.nodes]);
+  }, [winnerIds, graphData.nodes]);
 
   // 노드 3D 오브젝트 생성 (빛 반사 없는 플랫 스타일)
   const nodeThreeObject = useCallback((node) => {
@@ -332,15 +335,11 @@ export default function NetworkGraph3D({
     return group;
   }, [phase]);
 
-  // 링크 색상
+  // 링크 색상 (당첨자 링크 하이라이트 제거 - 노드만 글로우)
   const linkColor = useCallback((link) => {
-    const sourceIsWinner = link.source.id === winnerId || link.source === winnerId;
-    const targetIsWinner = link.target.id === winnerId || link.target === winnerId;
-
-    if (sourceIsWinner || targetIsWinner) return 'rgba(255, 0, 255, 0.8)';
     if (phase === 'searching') return 'rgba(0, 212, 255, 0.4)';
     return 'rgba(74, 144, 217, 0.2)';
-  }, [phase, winnerId]);
+  }, [phase]);
 
   // 컨테이너 크기 계산
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });

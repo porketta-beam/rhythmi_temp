@@ -9,7 +9,7 @@ import {
 import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
 import { luckydrawAPI } from '../../../lib/api/luckydraw';
-import { DEFAULT_EVENT_ID } from '../../../lib/lottery/constants';
+import { DEFAULT_EVENT_ID, DRAW_MODES, getDrawModeConfig } from '../../../lib/lottery/constants';
 import { padNumber } from '../../../lib/lottery/utils';
 
 // localStorage에서 초기값 로드하는 함수 (컴포넌트 외부)
@@ -35,7 +35,14 @@ export default function AdminPage() {
   const [prizes, setPrizes] = useState([]);
   const [selectedPrize, setSelectedPrize] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newPrize, setNewPrize] = useState({ name: '', description: '', quantity: 1, image: '' });
+  const [newPrize, setNewPrize] = useState({
+    name: '',
+    description: '',
+    quantity: 1,
+    image: '',
+    drawMode: 'slot',
+    winnerCount: 1,
+  });
   const [drawResults, setDrawResults] = useState([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [imagePreview, setImagePreview] = useState(null);
@@ -205,18 +212,20 @@ export default function AdminPage() {
 
   const addPrize = () => {
     if (!newPrize.name.trim()) return;
-    
+
     const prize = {
       id: Date.now().toString(),
       name: newPrize.name,
       description: newPrize.description,
       image: newPrize.image,
       quantity: newPrize.quantity,
+      drawMode: newPrize.drawMode,
+      winnerCount: newPrize.winnerCount,
       drawn: 0,
     };
-    
+
     setPrizes([...prizes, prize]);
-    setNewPrize({ name: '', description: '', quantity: 1, image: '' });
+    setNewPrize({ name: '', description: '', quantity: 1, image: '', drawMode: 'slot', winnerCount: 1 });
     setImagePreview(null);
     setShowAddModal(false);
   };
@@ -239,7 +248,9 @@ export default function AdminPage() {
         DEFAULT_EVENT_ID,
         prize.name,
         prize.drawn + 1,
-        prize.image || null
+        prize.image || null,
+        prize.drawMode || 'slot',
+        prize.winnerCount || 1
       );
 
       setIsStandby(true);
@@ -275,7 +286,9 @@ export default function AdminPage() {
         DEFAULT_EVENT_ID,
         prize.name,
         prize.drawn + 1,
-        prize.image || null
+        prize.image || null,
+        prize.drawMode || 'slot',
+        prize.winnerCount || 1
       );
 
       // 결과 발표 대기 상태로 전환
@@ -333,7 +346,7 @@ export default function AdminPage() {
 
   const closeModal = () => {
     setShowAddModal(false);
-    setNewPrize({ name: '', description: '', quantity: 1, image: '' });
+    setNewPrize({ name: '', description: '', quantity: 1, image: '', drawMode: 'slot', winnerCount: 1 });
     setImagePreview(null);
   };
 
@@ -431,7 +444,20 @@ export default function AdminPage() {
                             )}
                           </div>
                           <div>
-                            <h3 className="font-semibold text-white">{prize.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-white">{prize.name}</h3>
+                              {/* 모드 배지 */}
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                prize.drawMode === 'card'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : prize.drawMode === 'network'
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-cyan-500/20 text-cyan-400'
+                              }`}>
+                                {getDrawModeConfig(prize.drawMode || 'slot').name}
+                                {(prize.winnerCount || 1) > 1 && ` ×${prize.winnerCount}`}
+                              </span>
+                            </div>
                             {prize.description && <p className="text-sm text-gray-400">{prize.description}</p>}
                           </div>
                         </div>
@@ -781,6 +807,78 @@ export default function AdminPage() {
                     className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-700 text-white focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
+
+                {/* 추첨 모드 선택 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">추첨 모드</label>
+                  <div className="space-y-2">
+                    {Object.values(DRAW_MODES).map((mode) => (
+                      <label
+                        key={mode.id}
+                        className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                          newPrize.drawMode === mode.id
+                            ? 'border-cyan-400 bg-cyan-500/10'
+                            : 'border-gray-700 bg-gray-900/50 hover:border-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="drawMode"
+                          value={mode.id}
+                          checked={newPrize.drawMode === mode.id}
+                          onChange={(e) => {
+                            const modeConfig = getDrawModeConfig(e.target.value);
+                            setNewPrize({
+                              ...newPrize,
+                              drawMode: e.target.value,
+                              winnerCount: modeConfig.defaultWinners,
+                            });
+                          }}
+                          className="sr-only"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-white">{mode.name}</p>
+                          <p className="text-xs text-gray-400">{mode.description}</p>
+                        </div>
+                        {newPrize.drawMode === mode.id && (
+                          <div className="w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 당첨자 수 (슬롯 모드가 아닐 때만) */}
+                {newPrize.drawMode !== 'slot' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      회차당 당첨자 수
+                      <span className="text-gray-500 ml-2">
+                        ({getDrawModeConfig(newPrize.drawMode).minWinners}-{getDrawModeConfig(newPrize.drawMode).maxWinners}명)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      min={getDrawModeConfig(newPrize.drawMode).minWinners}
+                      max={getDrawModeConfig(newPrize.drawMode).maxWinners}
+                      value={newPrize.winnerCount}
+                      onChange={(e) => {
+                        const modeConfig = getDrawModeConfig(newPrize.drawMode);
+                        const value = Math.min(
+                          Math.max(parseInt(e.target.value) || 1, modeConfig.minWinners),
+                          modeConfig.maxWinners
+                        );
+                        setNewPrize({ ...newPrize, winnerCount: value });
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-700 text-white focus:border-cyan-500 focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      한 번의 추첨에서 {newPrize.winnerCount}명의 당첨자가 선정됩니다
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex gap-3 mt-6">
                   <Button onClick={closeModal} variant="outline" className="flex-1 border-gray-600 text-gray-300">취소</Button>

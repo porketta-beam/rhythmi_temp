@@ -37,3 +37,36 @@ export const SLOT_STATE = {
   STOPPING: 'stopping',
   WINNER: 'winner',
 };
+
+// 추첨 모드 설정
+export const DRAW_MODES = {
+  SLOT: {
+    id: 'slot',
+    name: '슬롯머신',
+    description: '3자리 숫자가 슬롯처럼 회전',
+    minWinners: 1,
+    maxWinners: 1,
+    defaultWinners: 1,
+  },
+  CARD: {
+    id: 'card',
+    name: '카드 뒤집기',
+    description: '카드가 순차적으로 뒤집히며 공개',
+    minWinners: 1,
+    maxWinners: 5,
+    defaultWinners: 3,
+  },
+  NETWORK: {
+    id: 'network',
+    name: '네트워크',
+    description: '3D 네트워크에서 당첨자 탐색',
+    minWinners: 1,
+    maxWinners: 10,
+    defaultWinners: 1,
+  },
+};
+
+// 모드 ID로 설정 조회
+export const getDrawModeConfig = (modeId) => {
+  return Object.values(DRAW_MODES).find(mode => mode.id === modeId) || DRAW_MODES.SLOT;
+};

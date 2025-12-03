@@ -190,14 +190,18 @@ class LuckyDrawAPI {
    * @param {string} prizeName - 상품 이름
    * @param {number} prizeRank - 상품 등급
    * @param {string|null} prizeImage - 상품 이미지 URL (선택)
+   * @param {string} drawMode - 추첨 모드 (slot, card, network)
+   * @param {number} winnerCount - 당첨자 수
    */
-  async standby(eventId, prizeName, prizeRank, prizeImage = null) {
+  async standby(eventId, prizeName, prizeRank, prizeImage = null, drawMode = "slot", winnerCount = 1) {
     return await this._request(`/admin/${encodeURIComponent(eventId)}/draw/standby`, {
       method: "POST",
       body: JSON.stringify({
         prize_name: prizeName,
         prize_rank: prizeRank,
         prize_image: prizeImage,
+        draw_mode: drawMode,
+        winner_count: winnerCount,
       }),
     });
   }
@@ -213,14 +217,18 @@ class LuckyDrawAPI {
    * @param {string} prizeName - 상품 이름
    * @param {number} prizeRank - 상품 등급
    * @param {string|null} prizeImage - 상품 이미지 URL (선택)
+   * @param {string} drawMode - 추첨 모드 (slot, card, network)
+   * @param {number} winnerCount - 당첨자 수
    */
-  async startDrawAnimation(eventId, prizeName, prizeRank, prizeImage = null) {
+  async startDrawAnimation(eventId, prizeName, prizeRank, prizeImage = null, drawMode = "slot", winnerCount = 1) {
     return await this._request(`/admin/${encodeURIComponent(eventId)}/draw/start-animation`, {
       method: "POST",
       body: JSON.stringify({
         prize_name: prizeName,
         prize_rank: prizeRank,
         prize_image: prizeImage,
+        draw_mode: drawMode,
+        winner_count: winnerCount,
       }),
     });
   }

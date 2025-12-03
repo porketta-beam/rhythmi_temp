@@ -245,12 +245,16 @@ class DrawAnimationRequest(BaseModel):
     prize_name: str = Field(..., description="상품 이름")
     prize_rank: int = Field(..., description="상품 등급")
     prize_image: Optional[str] = Field(None, description="상품 이미지 URL (선택)")
+    draw_mode: str = Field("slot", description="추첨 모드 (slot, card, network)")
+    winner_count: int = Field(1, description="당첨자 수 (slot: 1, card: 1-5, network: 1-10)")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "prize_name": "1등 상",
-                "prize_rank": 1
+                "prize_rank": 1,
+                "draw_mode": "slot",
+                "winner_count": 1
             }
         }
 
@@ -278,7 +282,9 @@ async def standby_draw(event_id: str, request: DrawAnimationRequest):
             event_id=event_id,
             prize_name=request.prize_name,
             prize_rank=request.prize_rank,
-            prize_image=request.prize_image
+            prize_image=request.prize_image,
+            draw_mode=request.draw_mode,
+            winner_count=request.winner_count
         )
 
         return {
@@ -319,7 +325,9 @@ async def start_draw_animation(event_id: str, request: DrawAnimationRequest):
             event_id=event_id,
             prize_name=request.prize_name,
             prize_rank=request.prize_rank,
-            prize_image=request.prize_image
+            prize_image=request.prize_image,
+            draw_mode=request.draw_mode,
+            winner_count=request.winner_count
         )
 
         return {
