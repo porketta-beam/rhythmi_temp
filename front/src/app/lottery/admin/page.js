@@ -51,6 +51,15 @@ export default function AdminPage() {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
+  // 클로저 문제 해결: standbyPrizeId의 최신 값을 ref로 유지
+  // WebSocket 핸들러에서 항상 최신 값을 참조할 수 있도록 함
+  const standbyPrizeIdRef = useRef(null);
+
+  // standbyPrizeId 상태 변경 시 ref 동기화
+  useEffect(() => {
+    standbyPrizeIdRef.current = standbyPrizeId;
+  }, [standbyPrizeId]);
+
   // 참가자 수 및 추첨 이력 조회
   const fetchData = useCallback(async () => {
     try {
@@ -101,8 +110,12 @@ export default function AdminPage() {
           }]);
 
           // 상품 추첨 횟수 업데이트
+          // ⚠️ standbyPrizeIdRef.current 사용 (클로저 문제 해결)
+          const currentPrizeId = standbyPrizeIdRef.current;
+          console.log('[Admin WS] winner_announced - currentPrizeId:', currentPrizeId);
+
           setPrizes(prev => prev.map(p => {
-            if (p.id === standbyPrizeId) {
+            if (p.id === currentPrizeId) {
               return { ...p, drawn: p.drawn + 1 };
             }
             return p;
@@ -127,7 +140,7 @@ export default function AdminPage() {
     wsRef.current.onerror = (error) => {
       console.error('[Admin WS] 에러:', error);
     };
-  }, [standbyPrizeId]);
+  }, []); // dependency 제거: standbyPrizeIdRef를 사용하므로 재연결 불필요
 
   // 초기 로드 및 주기적 업데이트
   useEffect(() => {
