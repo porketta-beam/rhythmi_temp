@@ -7,16 +7,18 @@ import Image from 'next/image';
 
 /**
  * 상품 안내 오버레이 컴포넌트
- * 추첨 시작 시 표시되는 전체 화면 오버레이
+ * 추첨 대기/시작 시 표시되는 전체 화면 오버레이
  *
  * @param {boolean} show - 오버레이 표시 여부
  * @param {string} prizeName - 상품명
  * @param {string|null} prizeImage - 상품 이미지 URL (선택)
+ * @param {boolean} isStandby - 대기 상태 여부 (true: 대기 중, false: 추첨 시작)
  */
 export const PrizeAnnouncementOverlay = memo(function PrizeAnnouncementOverlay({
   show,
   prizeName,
   prizeImage,
+  isStandby = false,
 }) {
   return (
     <AnimatePresence>
@@ -53,14 +55,18 @@ export const PrizeAnnouncementOverlay = memo(function PrizeAnnouncementOverlay({
                 <Gift className="w-24 h-24 sm:w-32 sm:h-32 text-yellow-400 mx-auto" />
               )}
             </motion.div>
-            <p className="text-gray-300 text-lg sm:text-xl mb-2">지금 추첨하는 상품은</p>
+            <p className="text-gray-300 text-lg sm:text-xl mb-2">
+              {isStandby ? '다음 추첨 상품은' : '지금 추첨하는 상품은'}
+            </p>
             <h2
               className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-400 bg-clip-text text-transparent mb-4"
               style={{ fontFamily: 'Pretendard, sans-serif' }}
             >
               {prizeName}
             </h2>
-            <p className="text-gray-400 text-sm">잠시 후 추첨이 시작됩니다...</p>
+            <p className="text-gray-400 text-sm">
+              {isStandby ? '추첨 대기 중...' : '잠시 후 추첨이 시작됩니다...'}
+            </p>
           </motion.div>
         </motion.div>
       )}

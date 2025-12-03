@@ -5,11 +5,17 @@
  *
  * 수신 메시지 타입:
  * - participant_joined: 새 참가자 등록
- * - draw_started: 추첨 애니메이션 시작
- * - winner_announced: 당첨자 발표
+ * - draw_standby: 추첨 대기 (상품 안내)
+ * - draw_started: 추첨 시작 (슬롯 회전)
+ * - winner_revealed: 결과 발표 (main 전용 - 당첨번호 수신)
+ * - winner_announced: 당첨자 공개 (waiting/admin - main 완료 후)
  * - event_reset: 이벤트 리셋
  * - connection_count: 연결 수 업데이트
  * - pong: heartbeat 응답
+ *
+ * 송신 메시지 타입:
+ * - draw_complete: main에서 애니메이션 완료 알림
+ * - ping: heartbeat
  */
 
 import { API_BASE } from "../apiConfig";
@@ -111,6 +117,34 @@ class LuckyDrawSocket {
    */
   isConnected() {
     return this.socket && this.socket.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * 서버에 메시지 전송
+   *
+   * @param {string} type - 메시지 타입
+   * @param {Object} data - 메시지 데이터 (선택)
+   * @returns {boolean} 전송 성공 여부
+   */
+  send(type, data = {}) {
+    if (!this.isConnected()) {
+      console.warn("[WS] 연결되지 않음 - 메시지 전송 실패:", type);
+      return false;
+    }
+
+    const message = JSON.stringify({
+      type,
+      ...data,
+    });
+
+    try {
+      this.socket.send(message);
+      console.log("[WS] 메시지 전송:", type, data);
+      return true;
+    } catch (error) {
+      console.error("[WS] 메시지 전송 에러:", error);
+      return false;
+    }
   }
 
   /**

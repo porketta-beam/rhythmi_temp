@@ -25,7 +25,7 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 if DEBUG:
     # 개발 환경: 모든 origin 허용
     allowed_origins = ["*"]
-    print("🔓 [CORS] DEBUG 모드: 모든 origin 허용")
+    print("[CORS] DEBUG 모드: 모든 origin 허용")
 else:
     # 프로덕션 환경: 특정 도메인만 허용
     FRONT_URL = os.getenv("FRONT_URL", "http://localhost:3000")
@@ -41,7 +41,7 @@ else:
         ["http://127.0.0.1:3000", "http://localhost:3000"]
     )
     allowed_origins = list(dict.fromkeys(allowed_origins))
-    print(f"🔒 [CORS] 프로덕션 모드: {len(allowed_origins)}개 도메인 허용")
+    print(f"[CORS] 프로덕션 모드: {len(allowed_origins)}개 도메인 허용")
 
 app.add_middleware(
     CORSMiddleware,

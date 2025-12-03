@@ -179,7 +179,35 @@ class LuckyDrawAPI {
   }
 
   /**
-   * 추첨 애니메이션 시작 (WebSocket 브로드캐스트)
+   * 추첨 대기 시작 (WebSocket 브로드캐스트)
+   *
+   * 상품 정보를 모든 클라이언트에 미리 알립니다.
+   * - /lottery 페이지 → /lottery/main 페이지로 전환
+   * - /lottery/waiting 페이지 → 상품 정보 표시
+   * - /lottery/main 페이지 → 상품 안내 오버레이 표시
+   *
+   * @param {string} eventId - 이벤트 ID
+   * @param {string} prizeName - 상품 이름
+   * @param {number} prizeRank - 상품 등급
+   * @param {string|null} prizeImage - 상품 이미지 URL (선택)
+   */
+  async standby(eventId, prizeName, prizeRank, prizeImage = null) {
+    return await this._request(`/admin/${encodeURIComponent(eventId)}/draw/standby`, {
+      method: "POST",
+      body: JSON.stringify({
+        prize_name: prizeName,
+        prize_rank: prizeRank,
+        prize_image: prizeImage,
+      }),
+    });
+  }
+
+  /**
+   * 추첨 시작 (실제 추첨 실행 + 애니메이션 시작)
+   *
+   * 추첨을 실행하고 결과를 서버에 임시 저장한 뒤,
+   * 모든 클라이언트에 draw_started 이벤트를 브로드캐스트합니다.
+   * 결과 발표는 reveal() 호출 시 진행됩니다.
    *
    * @param {string} eventId - 이벤트 ID
    * @param {string} prizeName - 상품 이름
@@ -198,7 +226,30 @@ class LuckyDrawAPI {
   }
 
   /**
-   * 추첨 실행
+   * 결과 발표 (main 페이지에 당첨번호 전송)
+   *
+   * pending_draw의 당첨번호를 main 페이지에 전송합니다.
+   * main에서 슬롯 정지 애니메이션 후 draw_complete 메시지를 보내면
+   * 서버가 waiting/admin에 winner_announced를 브로드캐스트합니다.
+   *
+   * @param {string} eventId - 이벤트 ID
+   * @returns {Promise<{prizeName: string, prizeRank: number, winners: Array, drawnAt: string}>}
+   */
+  async reveal(eventId) {
+    const result = await this._request(`/admin/${encodeURIComponent(eventId)}/draw/reveal`, {
+      method: "POST",
+    });
+
+    return {
+      prizeName: result.data.prize_name,
+      prizeRank: result.data.prize_rank,
+      winners: result.data.winners,
+      drawnAt: result.data.drawn_at,
+    };
+  }
+
+  /**
+   * 추첨 실행 (레거시 - 직접 추첨 + 즉시 발표)
    *
    * @param {string} eventId - 이벤트 ID
    * @param {string} prizeName - 상품 이름

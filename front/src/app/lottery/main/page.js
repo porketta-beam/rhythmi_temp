@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion } from "motion/react";
 import { Gift } from "lucide-react";
 import Image from "next/image";
 import { SlotMachine } from "../../../components/lottery/SlotMachine";
-import { AnimatedBackground } from "../../../components/lottery/AnimatedBackground";
 import { PrizeAnnouncementOverlay } from "../../../components/lottery/PrizeAnnouncementOverlay";
 import { ConnectionStatusIndicator } from "../../../components/lottery/ConnectionStatusIndicator";
-import { DecorativeElements } from "../../../components/lottery/DecorativeElements";
+import { useLotterySocket } from "../../../hooks/useLotterySocket";
 import { luckydrawSocket } from "../../../lib/websocket/luckydrawSocket";
-
-// 기본 이벤트 ID (관리자 페이지와 동일)
-const DEFAULT_EVENT_ID = "sfs-2025";
+import { DEFAULT_EVENT_ID } from "../../../lib/lottery/constants";
 
 export default function LotteryMainPage() {
   const [currentPrize, setCurrentPrize] = useState(null);
@@ -20,26 +17,46 @@ export default function LotteryMainPage() {
   const [showPrizeAnnouncement, setShowPrizeAnnouncement] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [pendingWinner, setPendingWinner] = useState(null);
+  const [isStandby, setIsStandby] = useState(false); // 대기 상태 추가
   const slotMachineRef = useRef(null);
+
+  // 추첨 대기 이벤트 처리 (신규)
+  const handleDrawStandby = useCallback((data) => {
+    console.log('[Presentation] draw_standby:', data);
+    setCurrentPrize(data.prize_name);
+    setCurrentPrizeImage(data.prize_image || null);
+    setIsStandby(true);
+    setShowPrizeAnnouncement(true);
+
+    // 대기 상태에서는 상품 안내만 표시 (슬롯 시작 안 함)
+    // draw_started 이벤트가 오면 슬롯이 시작됨
+  }, []);
 
   // 추첨 시작 이벤트 처리
   const handleDrawStarted = useCallback((data) => {
     console.log('[Presentation] draw_started:', data);
     setCurrentPrize(data.prize_name);
     setCurrentPrizeImage(data.prize_image || null);
-    setShowPrizeAnnouncement(true);
+    setIsStandby(false);
 
-    // 3초 후 상품 안내 숨기고 슬롯 스피닝 시작
-    setTimeout(() => {
+    // 이미 상품 안내가 표시 중이면 바로 슬롯 시작
+    if (showPrizeAnnouncement) {
       setShowPrizeAnnouncement(false);
-      // 슬롯머신 스피닝 시작 (당첨번호 대기)
       slotMachineRef.current?.startSpinning();
-    }, 3000);
-  }, []);
+    } else {
+      // 상품 안내 표시 후 슬롯 시작
+      setShowPrizeAnnouncement(true);
+      setTimeout(() => {
+        setShowPrizeAnnouncement(false);
+        slotMachineRef.current?.startSpinning();
+      }, 3000);
+    }
+  }, [showPrizeAnnouncement]);
 
-  // 당첨자 발표 이벤트 처리
-  const handleWinnerAnnounced = useCallback((data) => {
-    console.log('[Presentation] winner_announced:', data);
+  // 결과 발표 이벤트 처리 (main 전용 - 서버에서 당첨번호 수신)
+  // winner_revealed: admin이 "결과 발표" 버튼 클릭 시 main에만 전송
+  const handleWinnerRevealed = useCallback((data) => {
+    console.log('[Presentation] winner_revealed:', data);
 
     // 당첨 번호가 있으면 SlotMachine에서 해당 번호로 정지
     if (data.winners && data.winners.length > 0) {
@@ -57,6 +74,13 @@ export default function LotteryMainPage() {
     }
   }, []);
 
+  // 당첨자 공개 이벤트 처리 (waiting/admin용 - main은 무시)
+  // winner_announced: main의 애니메이션 완료 후 서버가 broadcast
+  const handleWinnerAnnounced = useCallback((data) => {
+    console.log('[Presentation] winner_announced (ignored in main):', data);
+    // main 페이지에서는 이미 winner_revealed로 처리했으므로 무시
+  }, []);
+
   // 이벤트 리셋 처리
   const handleEventReset = useCallback((data) => {
     console.log('[Presentation] event_reset:', data);
@@ -65,6 +89,7 @@ export default function LotteryMainPage() {
       setCurrentPrizeImage(null);
       setShowPrizeAnnouncement(false);
       setPendingWinner(null);
+      setIsStandby(false);
       slotMachineRef.current?.reset();
     }
   }, []);
@@ -106,40 +131,51 @@ export default function LotteryMainPage() {
       setConnectionStatus('disconnected');
     });
 
+    const unsubscribeStandby = luckydrawSocket.on('draw_standby', handleDrawStandby);
     const unsubscribeDrawStarted = luckydrawSocket.on('draw_started', handleDrawStarted);
-    const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
+    const unsubscribeWinnerRevealed = luckydrawSocket.on('winner_revealed', handleWinnerRevealed);
+    const unsubscribeWinnerAnnounced = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
     const unsubscribeReset = luckydrawSocket.on('event_reset', handleEventReset);
 
     // Cleanup
     return () => {
       unsubscribeConnected();
       unsubscribeDisconnected();
+      unsubscribeStandby();
       unsubscribeDrawStarted();
-      unsubscribeWinner();
+      unsubscribeWinnerRevealed();
+      unsubscribeWinnerAnnounced();
       unsubscribeReset();
       luckydrawSocket.disconnect();
     };
-  }, [handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
+  }, [handleDrawStandby, handleDrawStarted, handleWinnerRevealed, handleWinnerAnnounced, handleEventReset]);
 
   // 추첨 완료 콜백 (SlotMachine에서 호출)
+  // 슬롯 애니메이션 완료 후 서버에 draw_complete 전송
+  // → 서버가 winner_announced를 waiting/admin에 브로드캐스트
   const handleDrawComplete = useCallback((winningNumber) => {
-    console.log('[Presentation] Draw complete:', winningNumber.join(''));
-    // 서버에서 이미 결과를 관리하므로 여기서는 로깅만
+    const winnerNum = winningNumber.join('');
+    console.log('[Presentation] Draw complete:', winnerNum);
+
+    // 서버에 애니메이션 완료 알림
+    luckydrawSocket.send('draw_complete', {
+      event_id: DEFAULT_EVENT_ID,
+      winning_number: parseInt(winnerNum, 10),
+    });
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#10062D] via-[#341f97] to-[#c9208a]">
-      <AnimatedBackground />
-
+    <div className="min-h-screen">
       {/* Prize Announcement Overlay */}
       <PrizeAnnouncementOverlay
         show={showPrizeAnnouncement}
         prizeName={currentPrize}
         prizeImage={currentPrizeImage}
+        isStandby={isStandby}
       />
 
       {/* Header */}
-      <div className="relative z-10 pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
+      <div className="pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div>
             <h1
@@ -178,6 +214,9 @@ export default function LotteryMainPage() {
               <span className="text-yellow-400 font-medium text-sm sm:text-base">
                 {currentPrize}
               </span>
+              {isStandby && (
+                <span className="text-xs text-yellow-300/70 ml-1">(대기중)</span>
+              )}
             </motion.div>
           )}
         </div>
@@ -187,7 +226,7 @@ export default function LotteryMainPage() {
       <ConnectionStatusIndicator status={connectionStatus} />
 
       {/* Main Content */}
-      <div className="relative z-10">
+      <div>
         <SlotMachine
           ref={slotMachineRef}
           onBack={() => {}}
@@ -197,9 +236,6 @@ export default function LotteryMainPage() {
           hideControls={true}
         />
       </div>
-
-      {/* Decorative Elements */}
-      <DecorativeElements />
     </div>
   );
 }

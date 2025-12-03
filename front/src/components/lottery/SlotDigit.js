@@ -52,7 +52,7 @@ export const SlotDigit = forwardRef(function SlotDigit(
   useImperativeHandle(ref, () => ({
     stop: () => {
       setIsStopping(true);
-      
+
       let speed = 50;
       const slowdown = setInterval(() => {
         speed += 20;
@@ -64,6 +64,12 @@ export const SlotDigit = forwardRef(function SlotDigit(
           setCurrentNumber((prev) => (prev + 1) % 10);
         }
       }, speed);
+    },
+    // 새로운 추첨 시작 전 내부 상태 리셋
+    resetForNewSpin: () => {
+      setCurrentNumber(0);
+      setIsStopping(false);
+      setHasStopped(false);
     },
   }));
 

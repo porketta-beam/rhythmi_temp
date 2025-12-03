@@ -4,14 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Gift, Plus, Trash2, Play, RotateCcw, Check,
-  Settings, Users, Trophy, ChevronRight, X, ImagePlus, Loader2
+  Settings, Users, Trophy, ChevronRight, X, ImagePlus, Loader2, Pause
 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
 import { luckydrawAPI } from '../../../lib/api/luckydraw';
-
-// 기본 이벤트 ID (실제 서비스에서는 URL 파라미터 또는 설정에서 가져옴)
-const DEFAULT_EVENT_ID = "sfs-2025";
+import { DEFAULT_EVENT_ID } from '../../../lib/lottery/constants';
+import { padNumber } from '../../../lib/lottery/utils';
 
 // localStorage에서 초기값 로드하는 함수 (컴포넌트 외부)
 const getInitialPrizes = () => {
@@ -41,9 +40,16 @@ export default function AdminPage() {
   const [participantCount, setParticipantCount] = useState(0);
   const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false); // 슬롯 회전 중
+  const [isWaitingReveal, setIsWaitingReveal] = useState(false); // 결과 발표 대기 중
+  const [isStandby, setIsStandby] = useState(false); // 추첨 대기 상태
+  const [standbyPrizeId, setStandbyPrizeId] = useState(null); // 대기 중인 상품 ID
   const [isInitialized, setIsInitialized] = useState(false);
   const fileInputRef = useRef(null);
+
+  // WebSocket 연결 ref
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // 참가자 수 및 추첨 이력 조회
   const fetchData = useCallback(async () => {
@@ -57,13 +63,71 @@ export default function AdminPage() {
       setDrawResults(historyRes.draws.map(d => ({
         prizeName: d.prizeName,
         prizeRank: d.prizeRank,
-        winningNumber: String(d.drawNumber).padStart(3, '0'),
+        winningNumber: padNumber(d.drawNumber),
         timestamp: d.drawnAt,
       })));
     } catch (error) {
       console.error('데이터 조회 실패:', error);
     }
   }, []);
+
+  // WebSocket 연결 및 메시지 처리
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    const wsUrl = `ws://localhost:8000/api/luckydraw/ws/${DEFAULT_EVENT_ID}?client_type=admin`;
+    wsRef.current = new WebSocket(wsUrl);
+
+    wsRef.current.onopen = () => {
+      console.log('[Admin WS] 연결됨');
+    };
+
+    wsRef.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[Admin WS] 수신:', data);
+
+        if (data.type === 'winner_announced') {
+          // main 애니메이션 완료 후 서버가 보낸 당첨 결과
+          const { prize_name, prize_rank, winners, drawn_at, prize_image } = data;
+
+          // 결과 추가
+          setDrawResults(prev => [...prev, {
+            prizeName: prize_name,
+            prizeRank: prize_rank,
+            prizeImage: prize_image,
+            winningNumber: padNumber(winners[0]),
+            timestamp: drawn_at,
+          }]);
+
+          // 상품 추첨 횟수 업데이트
+          setPrizes(prev => prev.map(p => {
+            if (p.id === standbyPrizeId) {
+              return { ...p, drawn: p.drawn + 1 };
+            }
+            return p;
+          }));
+
+          // 상태 초기화
+          setIsDrawing(false);
+          setIsWaitingReveal(false);
+          setIsStandby(false);
+          setStandbyPrizeId(null);
+        }
+      } catch (error) {
+        console.error('[Admin WS] 메시지 파싱 에러:', error);
+      }
+    };
+
+    wsRef.current.onclose = () => {
+      console.log('[Admin WS] 연결 종료, 3초 후 재연결...');
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+    };
+
+    wsRef.current.onerror = (error) => {
+      console.error('[Admin WS] 에러:', error);
+    };
+  }, [standbyPrizeId]);
 
   // 초기 로드 및 주기적 업데이트
   useEffect(() => {
@@ -75,10 +139,22 @@ export default function AdminPage() {
     // 서버에서 데이터 로드
     fetchData();
 
+    // WebSocket 연결
+    connectWebSocket();
+
     // 5초마다 데이터 갱신
     const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    return () => {
+      clearInterval(interval);
+      // WebSocket 정리
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [fetchData, connectWebSocket]);
 
   // 상품 목록 로컬 저장 (초기화 후에만)
   useEffect(() => {
@@ -137,16 +213,51 @@ export default function AdminPage() {
     if (selectedPrize === id) setSelectedPrize(null);
   };
 
-  const startDraw = async () => {
-    if (!selectedPrize || isDrawing) return;
+  // 추첨 대기 시작 (상품 정보 브로드캐스트)
+  const startStandby = async () => {
+    if (!selectedPrize || isStandby || isDrawing) return;
 
     const prize = prizes.find(p => p.id === selectedPrize);
+    if (!prize || prize.drawn >= prize.quantity) return;
+
+    try {
+      // 대기 이벤트 브로드캐스트 (모든 페이지에 상품 정보 전달)
+      await luckydrawAPI.standby(
+        DEFAULT_EVENT_ID,
+        prize.name,
+        prize.drawn + 1,
+        prize.image || null
+      );
+
+      setIsStandby(true);
+      setStandbyPrizeId(prize.id);
+    } catch (error) {
+      console.error('추첨 대기 시작 실패:', error);
+      alert(error.message || '추첨 대기 시작에 실패했습니다.');
+    }
+  };
+
+  // 추첨 대기 취소
+  const cancelStandby = () => {
+    setIsStandby(false);
+    setStandbyPrizeId(null);
+  };
+
+  // 추첨 시작 (대기 상태에서 호출)
+  // - 서버에서 실제 추첨 실행 + 결과를 pending에 저장
+  // - 모든 클라이언트에 draw_started 브로드캐스트 (슬롯 회전 시작)
+  const startDraw = async () => {
+    if (!standbyPrizeId || isDrawing) return;
+
+    const prize = prizes.find(p => p.id === standbyPrizeId);
     if (!prize || prize.drawn >= prize.quantity) return;
 
     setIsDrawing(true);
 
     try {
-      // 1. 애니메이션 시작 알림 (WebSocket 브로드캐스트)
+      // 서버에 추첨 시작 요청
+      // - 서버가 실제 추첨을 실행하고 결과를 pending에 저장
+      // - 모든 클라이언트에 draw_started 브로드캐스트
       await luckydrawAPI.startDrawAnimation(
         DEFAULT_EVENT_ID,
         prize.name,
@@ -154,44 +265,33 @@ export default function AdminPage() {
         prize.image || null
       );
 
-      // 2. 프레젠테이션 창 열기 (WebSocket으로 데이터 전달됨)
-      window.open('/lottery/main', 'lottery', 'width=1920,height=1080');
-
-      // 4. 실제 추첨 실행 (3초 후 - 애니메이션 시간)
-      setTimeout(async () => {
-        try {
-          const result = await luckydrawAPI.draw(
-            DEFAULT_EVENT_ID,
-            prize.name,
-            prize.drawn + 1,
-            1
-          );
-
-          // 상품 추첨 횟수 업데이트
-          setPrizes(prizes.map(p =>
-            p.id === prize.id ? { ...p, drawn: p.drawn + 1 } : p
-          ));
-
-          // 결과 추가
-          setDrawResults(prev => [...prev, {
-            prizeName: result.prizeName,
-            prizeRank: result.prizeRank,
-            winningNumber: String(result.winners[0]).padStart(3, '0'),
-            timestamp: result.drawnAt,
-          }]);
-
-        } catch (error) {
-          console.error('추첨 실패:', error);
-          alert(error.message || '추첨에 실패했습니다.');
-        } finally {
-          setIsDrawing(false);
-        }
-      }, 3000);
+      // 결과 발표 대기 상태로 전환
+      setIsWaitingReveal(true);
 
     } catch (error) {
       console.error('추첨 시작 실패:', error);
       alert(error.message || '추첨 시작에 실패했습니다.');
       setIsDrawing(false);
+    }
+  };
+
+  // 결과 발표 (main 페이지에 당첨번호 전송)
+  // - main에서 슬롯 정지 애니메이션 후 draw_complete 전송
+  // - 서버가 winner_announced를 waiting/admin에 브로드캐스트
+  const revealWinner = async () => {
+    if (!isDrawing || !isWaitingReveal) return;
+
+    try {
+      // 서버에 결과 발표 요청
+      // - main 페이지에 winner_revealed 이벤트 전송
+      await luckydrawAPI.reveal(DEFAULT_EVENT_ID);
+
+      // 발표 버튼 비활성화 (main 완료 대기)
+      setIsWaitingReveal(false);
+
+    } catch (error) {
+      console.error('결과 발표 실패:', error);
+      alert(error.message || '결과 발표에 실패했습니다.');
     }
   };
 
@@ -225,6 +325,16 @@ export default function AdminPage() {
   };
 
   const selectedPrizeData = prizes.find(p => p.id === selectedPrize);
+
+  // 현재 추첨 중인 상품 데이터
+  const drawingPrizeData = standbyPrizeId ? prizes.find(p => p.id === standbyPrizeId) : null;
+
+  // 선택된 상품의 당첨 번호 목록 조회
+  const getWinningNumbersForPrize = (prizeName) => {
+    return drawResults
+      .filter(r => r.prizeName === prizeName)
+      .map(r => r.winningNumber);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -343,13 +453,132 @@ export default function AdminPage() {
                 추첨 컨트롤
               </h2>
 
-              {selectedPrizeData ? (
+              {/* 추첨 중인 상품이 있을 때 (다른 상품 선택 시에도 표시) */}
+              {(isDrawing || isStandby) && drawingPrizeData && (
+                <div className="space-y-4 mb-4">
+                  {isDrawing ? (
+                    // 추첨 진행 중
+                    <>
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
+                        {drawingPrizeData.image && (
+                          <div className="mb-4 flex justify-center">
+                            <div className="w-20 h-20 rounded-xl overflow-hidden ring-2 ring-green-400 animate-pulse">
+                              <Image src={drawingPrizeData.image} alt={drawingPrizeData.name} width={80} height={80} className="w-full h-full object-cover" />
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-sm text-green-400 mb-1">🎰 추첨 진행 중</p>
+                        <p className="text-lg font-bold text-white">{drawingPrizeData.name}</p>
+                        <p className="text-sm text-green-400/70 mt-2">
+                          {isWaitingReveal ? '슬롯이 회전 중입니다' : '결과 발표 중...'}
+                        </p>
+                      </div>
+
+                      {selectedPrize === standbyPrizeId && (
+                        <>
+                          {isWaitingReveal ? (
+                            <Button
+                              onClick={revealWinner}
+                              className="w-full h-14 text-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500"
+                            >
+                              <Trophy className="w-5 h-5 mr-2" />
+                              결과 발표
+                              <ChevronRight className="w-5 h-5 ml-2" />
+                            </Button>
+                          ) : (
+                            <Button
+                              disabled
+                              className="w-full h-14 text-lg bg-gray-700 cursor-not-allowed"
+                            >
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              애니메이션 진행 중...
+                            </Button>
+                          )}
+                          <p className="text-center text-xs text-gray-500">
+                            {isWaitingReveal
+                              ? '버튼을 누르면 당첨번호가 공개됩니다'
+                              : 'main 화면 애니메이션 완료 대기 중'}
+                          </p>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    // 대기 중
+                    <>
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30">
+                        {drawingPrizeData.image && (
+                          <div className="mb-4 flex justify-center">
+                            <div className="w-20 h-20 rounded-xl overflow-hidden ring-2 ring-yellow-400">
+                              <Image src={drawingPrizeData.image} alt={drawingPrizeData.name} width={80} height={80} className="w-full h-full object-cover" />
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-sm text-yellow-400 mb-1">🎯 추첨 대기 중</p>
+                        <p className="text-lg font-bold text-white">{drawingPrizeData.name}</p>
+                        <p className="text-sm text-yellow-400/70 mt-2">모든 화면에 상품이 표시되었습니다</p>
+                      </div>
+
+                      {selectedPrize === standbyPrizeId && (
+                        <>
+                          <Button
+                            onClick={startDraw}
+                            className="w-full h-14 text-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500"
+                          >
+                            <Play className="w-5 h-5 mr-2" fill="currentColor" />
+                            추첨 시작하기
+                            <ChevronRight className="w-5 h-5 ml-2" />
+                          </Button>
+
+                          <Button
+                            onClick={cancelStandby}
+                            variant="outline"
+                            className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            대기 취소
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* 추첨 중인 상품의 당첨 번호 표시 */}
+                  {selectedPrize === standbyPrizeId && (() => {
+                    const winningNumbers = getWinningNumbersForPrize(drawingPrizeData.name);
+                    return winningNumbers.length > 0 && (
+                      <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-700/50">
+                        <p className="text-xs text-gray-400 mb-2">🎉 이전 당첨 번호</p>
+                        <div className="flex flex-wrap gap-2">
+                          {winningNumbers.map((num, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 font-bold text-sm"
+                            >
+                              {num}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 다른 상품 선택 중일 때 안내 */}
+                  {selectedPrize && selectedPrize !== standbyPrizeId && (
+                    <p className="text-center text-xs text-yellow-400">
+                      ⚠️ 현재 다른 상품이 {isDrawing ? '추첨 중' : '대기 중'}입니다
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 선택된 상품 정보 (추첨 중이 아니거나, 다른 상품 선택 시) */}
+              {selectedPrizeData && selectedPrize !== standbyPrizeId && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30">
                     {selectedPrizeData.image && (
                       <div className="mb-4 flex justify-center">
-                        <div className="w-24 h-24 rounded-xl overflow-hidden ring-2 ring-cyan-400">
-                          <Image src={selectedPrizeData.image} alt={selectedPrizeData.name} width={96} height={96} className="w-full h-full object-cover" />
+                        <div className="w-20 h-20 rounded-xl overflow-hidden ring-2 ring-cyan-400">
+                          <Image src={selectedPrizeData.image} alt={selectedPrizeData.name} width={80} height={80} className="w-full h-full object-cover" />
                         </div>
                       </div>
                     )}
@@ -358,30 +587,53 @@ export default function AdminPage() {
                     <p className="text-sm text-cyan-400 mt-2">남은 수량: {selectedPrizeData.quantity - selectedPrizeData.drawn}개</p>
                   </div>
 
-                  <Button
-                    onClick={startDraw}
-                    disabled={selectedPrizeData.drawn >= selectedPrizeData.quantity || isDrawing}
-                    className="w-full h-14 text-lg bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 disabled:opacity-50"
-                  >
-                    {isDrawing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        추첨 진행 중...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-5 h-5 mr-2" fill="currentColor" />
-                        추첨 시작하기
-                        <ChevronRight className="w-5 h-5 ml-2" />
-                      </>
-                    )}
-                  </Button>
+                  {/* 당첨 번호 표시 */}
+                  {(() => {
+                    const winningNumbers = getWinningNumbersForPrize(selectedPrizeData.name);
+                    return winningNumbers.length > 0 && (
+                      <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-700/50">
+                        <p className="text-xs text-gray-400 mb-2">🎉 당첨 번호</p>
+                        <div className="flex flex-wrap gap-2">
+                          {winningNumbers.map((num, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 font-bold text-sm"
+                            >
+                              {num}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-                  {selectedPrizeData.drawn >= selectedPrizeData.quantity && (
-                    <p className="text-center text-sm text-yellow-400">⚠️ 해당 상품의 추첨이 완료되었습니다.</p>
+                  {/* 추첨 대기 버튼 (다른 상품이 추첨 중이 아닐 때만) */}
+                  {!isDrawing && !isStandby && (
+                    <>
+                      <Button
+                        onClick={startStandby}
+                        disabled={selectedPrizeData.drawn >= selectedPrizeData.quantity}
+                        className="w-full h-14 text-lg bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 disabled:opacity-50"
+                      >
+                        <Pause className="w-5 h-5 mr-2" />
+                        추첨 대기
+                        <ChevronRight className="w-5 h-5 ml-2" />
+                      </Button>
+
+                      <p className="text-center text-xs text-gray-500">
+                        버튼을 누르면 모든 화면에 상품 정보가 표시됩니다
+                      </p>
+
+                      {selectedPrizeData.drawn >= selectedPrizeData.quantity && (
+                        <p className="text-center text-sm text-yellow-400">⚠️ 해당 상품의 추첨이 완료되었습니다.</p>
+                      )}
+                    </>
                   )}
                 </div>
-              ) : (
+              )}
+
+              {/* 상품 미선택 */}
+              {!selectedPrize && !isDrawing && !isStandby && (
                 <div className="text-center py-8 text-gray-500">
                   <Trophy className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p>추첨할 상품을 선택해주세요</p>

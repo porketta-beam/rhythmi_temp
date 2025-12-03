@@ -256,22 +256,25 @@ class DrawAnimationRequest(BaseModel):
 
 
 @router.post(
-    "/admin/{event_id}/draw/start-animation",
-    summary="추첨 애니메이션 시작",
-    description="WebSocket으로 모든 클라이언트에 애니메이션 시작 알림"
+    "/admin/{event_id}/draw/standby",
+    summary="추첨 대기 시작",
+    description="WebSocket으로 모든 클라이언트에 상품 정보 미리 알림"
 )
-async def start_draw_animation(event_id: str, request: DrawAnimationRequest):
+async def standby_draw(event_id: str, request: DrawAnimationRequest):
     """
-    추첨 애니메이션 시작 API
+    추첨 대기 API
 
     **플로우**:
-    1. 관리자가 추첨 버튼 클릭
-    2. 이 엔드포인트 호출 → 모든 클라이언트에 애니메이션 시작 알림
-    3. 애니메이션 완료 후 /draw 엔드포인트 호출
+    1. 관리자가 상품 선택 후 '추첨 대기' 버튼 클릭
+    2. 이 엔드포인트 호출 → 모든 클라이언트에 상품 정보 알림
+    3. /lottery 페이지 → /lottery/main 페이지로 전환
+    4. /lottery/waiting 페이지 → 상품 정보 표시
+    5. /lottery/main 페이지 → 상품 안내 오버레이 표시
+    6. 관리자가 '추첨 시작하기' 버튼 클릭 시 start-animation 호출
     """
     try:
         service = get_luckydraw_service()
-        await service.start_draw_animation(
+        await service.standby_draw(
             event_id=event_id,
             prize_name=request.prize_name,
             prize_rank=request.prize_rank,
@@ -280,9 +283,104 @@ async def start_draw_animation(event_id: str, request: DrawAnimationRequest):
 
         return {
             "success": True,
-            "message": "추첨 애니메이션 시작"
+            "message": "추첨 대기 시작"
         }
 
+    except Exception as e:
+        logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "서버 내부 에러가 발생했습니다"
+            }
+        )
+
+
+@router.post(
+    "/admin/{event_id}/draw/start-animation",
+    summary="추첨 시작 (실제 추첨 실행)",
+    description="추첨을 실행하고 결과를 임시 저장한 뒤, 모든 클라이언트에 애니메이션 시작 알림"
+)
+async def start_draw_animation(event_id: str, request: DrawAnimationRequest):
+    """
+    추첨 시작 API (추첨 실행 + 애니메이션 시작)
+
+    **플로우**:
+    1. 관리자가 '추첨 시작' 버튼 클릭
+    2. 서버에서 실제 추첨 실행 (당첨번호 결정)
+    3. 결과를 임시 저장 (pending_draw)
+    4. 모든 클라이언트에 draw_started 브로드캐스트 (당첨번호 미포함)
+    5. '결과 발표' 버튼 클릭 시 /reveal 엔드포인트 호출
+    """
+    try:
+        service = get_luckydraw_service()
+        result = await service.start_draw_animation(
+            event_id=event_id,
+            prize_name=request.prize_name,
+            prize_rank=request.prize_rank,
+            prize_image=request.prize_image
+        )
+
+        return {
+            "success": True,
+            "message": result.get("message", "추첨이 완료되었습니다.")
+        }
+
+    except ValueError as e:
+        logger.error(f"[ERROR] 추첨 실패: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "DRAW_FAILED",
+                "message": str(e)
+            }
+        )
+    except Exception as e:
+        logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "서버 내부 에러가 발생했습니다"
+            }
+        )
+
+
+@router.post(
+    "/admin/{event_id}/draw/reveal",
+    summary="결과 발표",
+    description="main 페이지에 당첨번호를 전송하여 결과 애니메이션 시작"
+)
+async def reveal_winner(event_id: str):
+    """
+    결과 발표 API
+
+    **플로우**:
+    1. 관리자가 '결과 발표' 버튼 클릭
+    2. pending_draw의 당첨번호를 main 페이지에 전송 (winner_revealed)
+    3. main에서 슬롯 정지 + 결과 애니메이션
+    4. main 애니메이션 완료 시 WebSocket으로 draw_complete 전송
+    5. 서버가 waiting/admin에 winner_announced 브로드캐스트
+    """
+    try:
+        service = get_luckydraw_service()
+        result = await service.reveal_winner(event_id=event_id)
+
+        return {
+            "success": True,
+            "data": result
+        }
+
+    except ValueError as e:
+        logger.error(f"[ERROR] 결과 발표 실패: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "REVEAL_FAILED",
+                "message": str(e)
+            }
+        )
     except Exception as e:
         logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -436,12 +534,18 @@ async def websocket_luckydraw(websocket: WebSocket, event_id: str):
     - 추첨 시작/결과 알림 수신
     - 이벤트 리셋 알림 수신
 
-    메시지 타입:
+    서버→클라이언트 메시지 타입:
     - participant_joined: 새 참가자 등록
-    - draw_started: 추첨 애니메이션 시작
-    - winner_announced: 당첨자 발표
+    - draw_standby: 추첨 대기 (상품 정보)
+    - draw_started: 추첨 시작 (애니메이션 시작)
+    - winner_revealed: 결과 발표 (main만 처리)
+    - winner_announced: 당첨자 발표 (waiting/admin 처리)
     - event_reset: 이벤트 리셋
     - connection_count: 연결 수 업데이트
+
+    클라이언트→서버 메시지 타입:
+    - ping: heartbeat
+    - draw_complete: main 애니메이션 완료 알림
     """
     connection_manager = get_connection_manager()
 
@@ -452,12 +556,40 @@ async def websocket_luckydraw(websocket: WebSocket, event_id: str):
 
         # 연결 유지 (메시지 수신 대기)
         while True:
-            # 클라이언트로부터 메시지 수신 (heartbeat 용)
+            # 클라이언트로부터 메시지 수신
             data = await websocket.receive_json()
+            msg_type = data.get("type")
 
             # ping/pong heartbeat 처리
-            if data.get("type") == "ping":
+            if msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
+
+            # draw_complete: main 애니메이션 완료 → waiting/admin에 당첨번호 전송
+            elif msg_type == "draw_complete":
+                logger.info(f"[WS] draw_complete 수신: event_id={event_id}")
+                try:
+                    service = get_luckydraw_service()
+                    result = await service.complete_draw(event_id)
+                    # 성공 응답
+                    await websocket.send_json({
+                        "type": "draw_complete_ack",
+                        "success": True,
+                        "winners": result.get("winners", [])
+                    })
+                except ValueError as e:
+                    logger.error(f"[WS] draw_complete 처리 실패: {e}")
+                    await websocket.send_json({
+                        "type": "draw_complete_ack",
+                        "success": False,
+                        "error": str(e)
+                    })
+                except Exception as e:
+                    logger.error(f"[WS] draw_complete 처리 오류: {e}")
+                    await websocket.send_json({
+                        "type": "draw_complete_ack",
+                        "success": False,
+                        "error": "서버 오류"
+                    })
 
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket, event_id)

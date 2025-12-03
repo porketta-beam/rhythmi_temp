@@ -41,11 +41,22 @@ class DrawRecord:
 
 
 @dataclass
+class PendingDraw:
+    """대기 중인 추첨 결과 (결과 발표 전까지 보관)"""
+    prize_name: str
+    prize_rank: int
+    prize_image: Optional[str]
+    winners: List[int]
+    drawn_at: str
+
+
+@dataclass
 class EventData:
     """이벤트별 데이터"""
     participants: Dict[str, Participant] = field(default_factory=dict)
     draws: List[DrawRecord] = field(default_factory=list)
     next_draw_number: int = 1
+    pending_draw: Optional[PendingDraw] = None  # 결과 발표 대기 중인 추첨
 
 
 # ============================================================
@@ -348,7 +359,7 @@ class LuckyDrawService:
                 "drawn_at": drawn_at
             }
 
-    async def start_draw_animation(
+    async def standby_draw(
         self,
         event_id: str,
         prize_name: str,
@@ -356,7 +367,10 @@ class LuckyDrawService:
         prize_image: Optional[str] = None
     ) -> None:
         """
-        추첨 애니메이션 시작 브로드캐스트
+        추첨 대기 브로드캐스트
+
+        관리자가 상품을 선택하고 대기 버튼을 누르면 호출됩니다.
+        모든 클라이언트에 상품 정보를 미리 알려줍니다.
 
         Args:
             event_id: 이벤트 ID
@@ -365,6 +379,87 @@ class LuckyDrawService:
             prize_image: 상품 이미지 URL (선택)
         """
         await self.connection_manager.broadcast(event_id, {
+            "type": "draw_standby",
+            "prize_name": prize_name,
+            "prize_rank": prize_rank,
+            "prize_image": prize_image,
+            "status": "standby"
+        })
+
+        logger.info(
+            f"[추첨 대기] event_id={event_id}, prize_name={prize_name}"
+        )
+
+    async def start_draw_animation(
+        self,
+        event_id: str,
+        prize_name: str,
+        prize_rank: int,
+        prize_image: Optional[str] = None
+    ) -> Dict:
+        """
+        추첨 시작: 실제 추첨 실행 + 결과 임시 저장 + 애니메이션 시작 브로드캐스트
+
+        추첨 결과는 reveal_winner() 호출 전까지 공개되지 않습니다.
+
+        Args:
+            event_id: 이벤트 ID
+            prize_name: 상품 이름
+            prize_rank: 상품 등급
+            prize_image: 상품 이미지 URL (선택)
+
+        Returns:
+            {"success": True, "message": str}
+        """
+        lock = self._get_lock(event_id)
+        event_data = self._get_event_data(event_id)
+
+        async with lock:
+            # 참가자 목록 확인
+            if not event_data.participants:
+                raise ValueError("참가자가 없습니다. 추첨을 진행할 수 없습니다.")
+
+            # 이미 당첨된 번호 목록 (해당 등급에서)
+            existing_winners = {
+                draw.draw_number
+                for draw in event_data.draws
+                if draw.prize_rank == prize_rank
+            }
+
+            # 추첨 가능한 번호 목록
+            available_numbers = [
+                p.draw_number
+                for p in event_data.participants.values()
+                if p.draw_number not in existing_winners
+            ]
+
+            if not available_numbers:
+                raise ValueError(
+                    f"추첨 가능한 참가자가 없습니다. "
+                    f"(이미 {prize_rank}등 상에 당첨된 참가자만 남았습니다)"
+                )
+
+            # 랜덤 추첨 (1명)
+            selected_number = random.choice(available_numbers)
+            drawn_at = datetime.now().isoformat()
+
+            # 결과를 pending_draw에 임시 저장 (아직 draws에 기록 안 함)
+            event_data.pending_draw = PendingDraw(
+                prize_name=prize_name,
+                prize_rank=prize_rank,
+                prize_image=prize_image,
+                winners=[selected_number],
+                drawn_at=drawn_at
+            )
+
+            logger.info(
+                f"[추첨 실행] event_id={event_id}, "
+                f"prize_name={prize_name}, "
+                f"winner={selected_number} (미공개)"
+            )
+
+        # 애니메이션 시작 브로드캐스트 (당첨번호는 포함하지 않음)
+        await self.connection_manager.broadcast(event_id, {
             "type": "draw_started",
             "prize_name": prize_name,
             "prize_rank": prize_rank,
@@ -372,8 +467,109 @@ class LuckyDrawService:
         })
 
         logger.info(
-            f"[추첨 시작] event_id={event_id}, prize_name={prize_name}"
+            f"[추첨 애니메이션 시작] event_id={event_id}, prize_name={prize_name}"
         )
+
+        return {"success": True, "message": "추첨이 완료되었습니다. 결과 발표를 진행해주세요."}
+
+    async def reveal_winner(self, event_id: str) -> Dict:
+        """
+        결과 발표: main 페이지에 당첨번호 전송
+
+        pending_draw에 저장된 결과를 main 페이지에만 전송합니다.
+        main에서 애니메이션 완료 후 complete_draw()를 호출해야 합니다.
+
+        Args:
+            event_id: 이벤트 ID
+
+        Returns:
+            {"winners": List[int], "prize_name": str, ...}
+        """
+        event_data = self._get_event_data(event_id)
+
+        if not event_data.pending_draw:
+            raise ValueError("대기 중인 추첨 결과가 없습니다. 먼저 추첨을 시작해주세요.")
+
+        pending = event_data.pending_draw
+
+        # main 페이지에 당첨번호 전송 (winner_revealed 이벤트)
+        await self.connection_manager.broadcast(event_id, {
+            "type": "winner_revealed",
+            "prize_name": pending.prize_name,
+            "prize_rank": pending.prize_rank,
+            "prize_image": pending.prize_image,
+            "winners": pending.winners,
+            "drawn_at": pending.drawn_at
+        })
+
+        logger.info(
+            f"[결과 발표] event_id={event_id}, "
+            f"prize_name={pending.prize_name}, "
+            f"winners={pending.winners}"
+        )
+
+        return {
+            "prize_name": pending.prize_name,
+            "prize_rank": pending.prize_rank,
+            "winners": pending.winners,
+            "drawn_at": pending.drawn_at
+        }
+
+    async def complete_draw(self, event_id: str) -> Dict:
+        """
+        추첨 완료: main 애니메이션 종료 후 호출
+
+        pending_draw를 draws에 기록하고, waiting/admin에 당첨번호를 전송합니다.
+
+        Args:
+            event_id: 이벤트 ID
+
+        Returns:
+            {"success": True, "winners": List[int]}
+        """
+        lock = self._get_lock(event_id)
+        event_data = self._get_event_data(event_id)
+
+        async with lock:
+            if not event_data.pending_draw:
+                raise ValueError("완료할 추첨이 없습니다.")
+
+            pending = event_data.pending_draw
+
+            # draws에 기록
+            for winner in pending.winners:
+                record = DrawRecord(
+                    prize_name=pending.prize_name,
+                    prize_rank=pending.prize_rank,
+                    draw_number=winner,
+                    drawn_at=pending.drawn_at
+                )
+                event_data.draws.append(record)
+
+            # pending_draw 초기화
+            event_data.pending_draw = None
+
+            logger.info(
+                f"[추첨 완료] event_id={event_id}, "
+                f"prize_name={pending.prize_name}, "
+                f"winners={pending.winners} → draws에 기록됨"
+            )
+
+        # waiting/admin에 당첨번호 전송 (winner_announced 이벤트)
+        await self.connection_manager.broadcast(event_id, {
+            "type": "winner_announced",
+            "prize_name": pending.prize_name,
+            "prize_rank": pending.prize_rank,
+            "prize_image": pending.prize_image,
+            "winners": pending.winners,
+            "drawn_at": pending.drawn_at
+        })
+
+        return {
+            "success": True,
+            "prize_name": pending.prize_name,
+            "winners": pending.winners
+        }
 
     async def get_draw_history(self, event_id: str) -> List[Dict]:
         """

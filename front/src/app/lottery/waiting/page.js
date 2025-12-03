@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, Gift, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { AnimatedBackground } from '../../../components/lottery/AnimatedBackground';
 import { luckydrawAPI } from '../../../lib/api/luckydraw';
 import { luckydrawSocket } from '../../../lib/websocket/luckydrawSocket';
-
-// 기본 이벤트 ID (실제 서비스에서는 URL 파라미터 또는 설정에서 가져옴)
-const DEFAULT_EVENT_ID = "sfs-2025";
+import { DEFAULT_EVENT_ID, CONNECTION_STATUS } from '../../../lib/lottery/constants';
+import { padNumber } from '../../../lib/lottery/utils';
 
 export default function WaitingPage() {
   // 서버에서 발급받은 번호를 useState로 관리 (sessionStorage에도 백업)
@@ -28,6 +26,7 @@ export default function WaitingPage() {
     })();
   }, []);
   const [currentPrize, setCurrentPrize] = useState(null);
+  const [isStandby, setIsStandby] = useState(false); // 대기 상태
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
   const [wonPrizeName, setWonPrizeName] = useState(null);
@@ -49,7 +48,7 @@ export default function WaitingPage() {
         const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
         if (!isMounted) return; // 언마운트 시 setState 방지
 
-        const newNumber = String(result.drawNumber).padStart(3, '0');
+        const newNumber = padNumber(result.drawNumber);
         sessionStorage.setItem('ticketNumber', newNumber);
         setTicketNumber(newNumber);
         setError(null);
@@ -68,8 +67,19 @@ export default function WaitingPage() {
     setTotalParticipants(data.total_count);
   }, []);
 
+  // 추첨 대기 이벤트 처리 (신규)
+  const handleDrawStandby = useCallback((data) => {
+    console.log('[Waiting] draw_standby:', data);
+    setCurrentPrize(data.prize_name);
+    setIsStandby(true);
+    setIsDrawing(false);
+    setIsWinner(false);
+    setWonPrizeName(null);
+  }, []);
+
   const handleDrawStarted = useCallback((data) => {
     setIsDrawing(true);
+    setIsStandby(false);
     setCurrentPrize(data.prize_name);
     setIsWinner(false);
     setWonPrizeName(null);
@@ -124,6 +134,7 @@ export default function WaitingPage() {
     });
 
     const unsubscribeParticipant = luckydrawSocket.on('participant_joined', handleParticipantJoined);
+    const unsubscribeStandby = luckydrawSocket.on('draw_standby', handleDrawStandby);
     const unsubscribeDrawStarted = luckydrawSocket.on('draw_started', handleDrawStarted);
     const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
     const unsubscribeReset = luckydrawSocket.on('event_reset', handleEventReset);
@@ -133,19 +144,18 @@ export default function WaitingPage() {
       unsubscribeConnected();
       unsubscribeDisconnected();
       unsubscribeParticipant();
+      unsubscribeStandby();
       unsubscribeDrawStarted();
       unsubscribeWinner();
       unsubscribeReset();
       luckydrawSocket.disconnect();
     };
-  }, [handleParticipantJoined, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
+  }, [handleParticipantJoined, handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#10062D] via-[#341f97] to-[#c9208a]">
-      <AnimatedBackground />
-
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="relative z-10 pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
+      <div className="pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1
             className="text-white text-xl sm:text-2xl md:text-3xl mb-1"
@@ -163,7 +173,7 @@ export default function WaitingPage() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-4 py-8">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -306,8 +316,13 @@ export default function WaitingPage() {
                 <div className="flex items-center gap-3">
                   <Gift className="w-8 h-8 text-yellow-400" />
                   <div>
-                    <p className="text-gray-400 text-sm">현재 추첨 상품</p>
+                    <p className="text-gray-400 text-sm">
+                      {isStandby ? '다음 추첨 상품' : '현재 추첨 상품'}
+                    </p>
                     <p className="text-white text-lg font-bold">{currentPrize}</p>
+                    {isStandby && (
+                      <p className="text-yellow-300/70 text-xs mt-1">추첨 대기 중...</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -327,12 +342,6 @@ export default function WaitingPage() {
             )}
           </div>
         </motion.div>
-      </div>
-
-      {/* Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-2 sm:left-10 w-48 sm:w-72 h-48 sm:h-72 bg-cyan-500/10 rounded-full blur-[80px] sm:blur-[100px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-2 sm:right-10 w-48 sm:w-72 h-48 sm:h-72 bg-purple-500/10 rounded-full blur-[80px] sm:blur-[100px] animate-pulse" style={{ animationDelay: "1s" }} />
       </div>
     </div>
   );
