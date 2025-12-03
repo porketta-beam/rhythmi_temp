@@ -11,6 +11,7 @@ import { Button } from '../../../components/ui/button';
 import { luckydrawAPI } from '../../../lib/api/luckydraw';
 import { DEFAULT_EVENT_ID, DRAW_MODES, getDrawModeConfig } from '../../../lib/lottery/constants';
 import { padNumber } from '../../../lib/lottery/utils';
+import { API_BASE } from '../../../lib/apiConfig';
 
 // localStorage에서 초기값 로드하는 함수 (컴포넌트 외부)
 const getInitialPrizes = () => {
@@ -94,7 +95,10 @@ export default function AdminPage() {
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `ws://localhost:8000/api/luckydraw/ws/${DEFAULT_EVENT_ID}?client_type=admin`;
+    // API_BASE에서 WebSocket URL 생성 (http → ws, https → wss)
+    const wsProtocol = API_BASE.startsWith("https") ? "wss" : "ws";
+    const baseWithoutProtocol = API_BASE.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProtocol}://${baseWithoutProtocol}/api/luckydraw/ws/${DEFAULT_EVENT_ID}?client_type=admin`;
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
