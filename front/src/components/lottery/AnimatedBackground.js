@@ -1,7 +1,7 @@
 "use client";
 
+import { memo } from 'react';
 import { motion } from 'motion/react';
-import { useState, useEffect } from 'react';
 
 // 컴포넌트 외부에서 미리 생성 (순수성 유지)
 const generateParticles = () => Array.from({ length: 30 }, (_, i) => ({
@@ -11,11 +11,10 @@ const generateParticles = () => Array.from({ length: 30 }, (_, i) => ({
   duration: 10 + (i % 10) * 2,
 }));
 
-const initialParticles = generateParticles();
+const particles = generateParticles();
 
-export function AnimatedBackground() {
-  const [particles, setParticles] = useState(initialParticles);
-
+// React.memo로 감싸서 부모 리렌더링 시에도 다시 렌더링되지 않음
+export const AnimatedBackground = memo(function AnimatedBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* Grid Pattern */}
@@ -71,4 +70,4 @@ export function AnimatedBackground() {
       />
     </div>
   );
-}
+});

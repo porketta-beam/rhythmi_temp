@@ -155,7 +155,7 @@ export default function AdminPage() {
       );
 
       // 2. 프레젠테이션 창 열기 (WebSocket으로 데이터 전달됨)
-      window.open('/lottery', 'lottery', 'width=1920,height=1080');
+      window.open('/lottery/main', 'lottery', 'width=1920,height=1080');
 
       // 4. 실제 추첨 실행 (3초 후 - 애니메이션 시간)
       setTimeout(async () => {

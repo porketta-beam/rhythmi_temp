@@ -12,10 +12,21 @@ const DEFAULT_EVENT_ID = "sfs-2025";
 
 export default function WaitingPage() {
   // 서버에서 발급받은 번호를 useState로 관리 (sessionStorage에도 백업)
-  const [ticketNumber, setTicketNumber] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem('ticketNumber');
-  });
+  // SSR hydration 불일치 방지: 초기값은 null, useEffect에서 로드
+  const [ticketNumber, setTicketNumber] = useState(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Hydration 완료 후 sessionStorage에서 기존 번호 로드
+  useEffect(() => {
+    // IIFE로 비동기 컨텍스트 분리 (React 19 린트 규칙 준수)
+    (() => {
+      const storedNumber = sessionStorage.getItem('ticketNumber');
+      if (storedNumber) {
+        setTicketNumber(storedNumber);
+      }
+      setIsHydrated(true);
+    })();
+  }, []);
   const [currentPrize, setCurrentPrize] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
@@ -24,8 +35,10 @@ export default function WaitingPage() {
   const [error, setError] = useState(null);
   const [totalParticipants, setTotalParticipants] = useState(0);
 
-  // 참가자 등록 Effect (비동기 콜백에서만 setState 호출)
+  // 참가자 등록 Effect (hydration 완료 후 실행)
   useEffect(() => {
+    // hydration 완료 전이면 대기
+    if (!isHydrated) return;
     // 이미 번호가 있으면 서버 등록 스킵
     if (ticketNumber) return;
 
@@ -48,7 +61,7 @@ export default function WaitingPage() {
     })();
 
     return () => { isMounted = false; };
-  }, [ticketNumber]);
+  }, [isHydrated, ticketNumber]);
 
   // WebSocket 이벤트 핸들러
   const handleParticipantJoined = useCallback((data) => {
