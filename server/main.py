@@ -35,6 +35,7 @@ else:
     ]
     DEFAULT_DEPLOYMENT_ORIGINS = [
         "https://event-manager-gax2.vercel.app",
+        "https://luckydraw-seven-chi.vercel.app",
     ]
     allowed_origins = (
         [FRONT_URL] + FRONT_URLS + DEFAULT_DEPLOYMENT_ORIGINS +
@@ -78,9 +79,12 @@ async def root():
 
 
 if __name__ == "__main__":
+    # Railway/Render 등 PaaS는 PORT 환경변수를 제공
+    port = int(os.getenv("PORT", "8000"))
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True
+        port=port,
+        reload=DEBUG  # 프로덕션에서는 reload 비활성화
     )
