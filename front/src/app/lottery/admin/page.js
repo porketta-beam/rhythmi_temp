@@ -351,7 +351,7 @@ export default function AdminPage() {
   };
 
   const resetAll = async () => {
-    if (!confirm('모든 추첨 결과와 참가자를 초기화하시겠습니까?')) return;
+    if (!confirm('모든 추첨 결과, 참가자, 상품 목록을 초기화하시겠습니까?')) return;
 
     setIsLoading(true);
 
@@ -362,7 +362,16 @@ export default function AdminPage() {
       // 로컬 상태 리셋
       setDrawResults([]);
       setParticipantCount(0);
-      setPrizes(prizes.map(p => ({ ...p, drawn: 0 })));
+      setWinnersInfo([]);
+      setPrizes([]);  // 상품 목록 전체 초기화
+      setSelectedPrize(null);
+      setIsStandby(false);
+      setStandbyPrizeId(null);
+      setIsDrawing(false);
+      setIsWaitingReveal(false);
+
+      // localStorage 정리
+      localStorage.removeItem('admin_prizes');
 
       alert('초기화가 완료되었습니다.');
     } catch (error) {

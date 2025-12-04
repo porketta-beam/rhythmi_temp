@@ -27,12 +27,13 @@ class DatabaseConnection:
 
     def _initialize_connection(self):
         """PostgreSQL 연결 초기화"""
-        # 개별 항목이 존재하면 이를 우선 사용 (비밀번호 특수문자 자동 인코딩 보장)
-        user = os.getenv("user")
-        password = os.getenv("password")
-        host = os.getenv("host")
-        port = os.getenv("port")
-        dbname = os.getenv("dbname")
+        # SUPABASE_DB_* 변수 사용 (Railway PORT와 충돌 방지)
+        # 기존 소문자 변수명도 fallback으로 지원 (하위 호환성)
+        user = os.getenv("SUPABASE_DB_USER") or os.getenv("user")
+        password = os.getenv("SUPABASE_DB_PASSWORD") or os.getenv("password")
+        host = os.getenv("SUPABASE_DB_HOST") or os.getenv("host")
+        port = os.getenv("SUPABASE_DB_PORT") or os.getenv("port")
+        dbname = os.getenv("SUPABASE_DB_NAME") or os.getenv("dbname")
 
         url_obj: URL | str
         if user and password and host:

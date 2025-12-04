@@ -37,7 +37,6 @@ export default function WaitingPage() {
   const [wonPrizeName, setWonPrizeName] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [error, setError] = useState(null);
-  const [totalParticipants, setTotalParticipants] = useState(0);
 
   // Hydration 완료 후 sessionStorage에서 기존 데이터 로드
   useEffect(() => {
@@ -99,10 +98,6 @@ export default function WaitingPage() {
   }, []);
 
   // WebSocket 이벤트 핸들러
-  const handleParticipantJoined = useCallback((data) => {
-    setTotalParticipants(data.total_count);
-  }, []);
-
   const handleDrawStandby = useCallback((data) => {
     console.log('[Waiting] draw_standby:', data);
     setCurrentPrize(data.prize_name);
@@ -149,6 +144,7 @@ export default function WaitingPage() {
   }, [ticketNumber, personalInfo]);
 
   const handleEventReset = useCallback((data) => {
+    console.log('[Waiting] event_reset:', data);
     if (data.reset_participants) {
       // 참가자 목록이 리셋되면 처음으로
       sessionStorage.removeItem('ticketNumber');
@@ -159,9 +155,11 @@ export default function WaitingPage() {
       setStep('consent');
       setIsWinner(false);
       setWonPrizeName(null);
+      setIsStandby(false);
     }
     if (data.reset_draws) {
       setIsDrawing(false);
+      setIsStandby(false);
       setCurrentPrize(null);
       setIsWinner(false);
       setWonPrizeName(null);
@@ -187,7 +185,6 @@ export default function WaitingPage() {
       setConnectionStatus('disconnected');
     });
 
-    const unsubscribeParticipant = luckydrawSocket.on('participant_joined', handleParticipantJoined);
     const unsubscribeStandby = luckydrawSocket.on('draw_standby', handleDrawStandby);
     const unsubscribeDrawStarted = luckydrawSocket.on('draw_started', handleDrawStarted);
     const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
@@ -196,14 +193,13 @@ export default function WaitingPage() {
     return () => {
       unsubscribeConnected();
       unsubscribeDisconnected();
-      unsubscribeParticipant();
       unsubscribeStandby();
       unsubscribeDrawStarted();
       unsubscribeWinner();
       unsubscribeReset();
       luckydrawSocket.disconnect();
     };
-  }, [handleParticipantJoined, handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
+  }, [handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
 
   // Hydration 대기 중
   if (!isHydrated) {
@@ -407,11 +403,6 @@ export default function WaitingPage() {
               💡 이 페이지를 유지해주세요.<br />
               추첨 결과가 실시간으로 표시됩니다.
             </p>
-            {totalParticipants > 0 && (
-              <p className="text-center text-cyan-400 text-sm mt-2" style={{ fontFamily: "Pretendard, sans-serif" }}>
-                현재 참가자: {totalParticipants}명
-              </p>
-            )}
           </div>
         </motion.div>
       </div>

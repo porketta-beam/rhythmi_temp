@@ -79,8 +79,12 @@ async def root():
 
 
 if __name__ == "__main__":
-    # Railway/Render 등 PaaS는 PORT 환경변수를 제공
+    # PORT 환경변수 처리:
+    # - Railway/Render: PORT를 동적으로 주입 (예: 3000, 5000 등)
+    # - 로컬 개발: PORT 미설정 시 기본값 8000 사용
+    # 주의: .env의 SUPABASE_DB_PORT와 혼동하지 않도록 주의
     port = int(os.getenv("PORT", "8000"))
+    print(f"[Server] Starting on port {port} (DEBUG={DEBUG})")
 
     uvicorn.run(
         "main:app",

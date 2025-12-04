@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { Gift } from "lucide-react";
 import Image from "next/image";
@@ -15,6 +16,7 @@ import { DEFAULT_EVENT_ID } from "../../../lib/lottery/constants";
 import { padNumber } from "../../../lib/lottery/utils";
 
 export default function LotteryMainPage() {
+  const router = useRouter();
   const [currentPrize, setCurrentPrize] = useState(null);
   const [currentPrizeImage, setCurrentPrizeImage] = useState(null);
   const [showPrizeAnnouncement, setShowPrizeAnnouncement] = useState(false);
@@ -168,7 +170,10 @@ export default function LotteryMainPage() {
     if (data.reset_participants) {
       setParticipants([]);
     }
-  }, []);
+
+    // 리셋 시 QR 코드 화면(/lottery)으로 이동
+    router.push('/lottery');
+  }, [router]);
 
   // 대기 중인 당첨자가 있고 애니메이션이 스피닝 시작되면 처리
   useEffect(() => {
