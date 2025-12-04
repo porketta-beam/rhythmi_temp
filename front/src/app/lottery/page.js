@@ -22,8 +22,6 @@ export default function LotteryQRPage() {
   // QR 코드용 전체 URL (환경변수 기반)
   const qrURL = `${FRONTEND_URL}${WAITING_PAGE_PATH}`;
 
-  // 서버/클라이언트 동일한 초기값으로 hydration mismatch 방지
-  const [displayURL, setDisplayURL] = useState(qrURL);
   const [isMounted, setIsMounted] = useState(false);
 
   // 추첨 대기 이벤트 처리 - /lottery/main으로 이동
@@ -110,12 +108,6 @@ export default function LotteryQRPage() {
               )}
             </div>
 
-            {/* URL Display */}
-            <div className="mt-4 px-4 py-2 bg-gray-100 rounded-lg">
-              <p className="text-gray-600 text-xs sm:text-sm font-mono break-all">
-                {displayURL}
-              </p>
-            </div>
           </div>
         </motion.div>
 

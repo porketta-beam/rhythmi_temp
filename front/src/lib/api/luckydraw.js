@@ -13,13 +13,13 @@ import { API_BASE } from "../apiConfig";
 const SESSION_TOKEN_KEY = "luckydraw_session_token";
 
 /**
- * 세션 토큰 저장
+ * 세션 토큰 저장 (localStorage 사용 - 영구 저장)
  * @param {string} eventId - 이벤트 ID
  * @param {string} token - 세션 토큰
  */
 export function saveSessionToken(eventId, token) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(`${SESSION_TOKEN_KEY}_${eventId}`, token);
+  localStorage.setItem(`${SESSION_TOKEN_KEY}_${eventId}`, token);
 }
 
 /**
@@ -29,7 +29,7 @@ export function saveSessionToken(eventId, token) {
  */
 export function getSessionToken(eventId) {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(`${SESSION_TOKEN_KEY}_${eventId}`);
+  return localStorage.getItem(`${SESSION_TOKEN_KEY}_${eventId}`);
 }
 
 /**
@@ -38,7 +38,7 @@ export function getSessionToken(eventId) {
  */
 export function clearSessionToken(eventId) {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(`${SESSION_TOKEN_KEY}_${eventId}`);
+  localStorage.removeItem(`${SESSION_TOKEN_KEY}_${eventId}`);
 }
 
 // ============================================================
@@ -120,6 +120,7 @@ class LuckyDrawAPI {
       drawNumber: result.data.draw_number,
       sessionToken: result.data.session_token,
       eventId: result.data.event_id,
+      eventSessionId: result.data.event_session_id,
       isExisting: result.data.is_existing,
     };
   }

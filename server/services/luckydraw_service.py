@@ -70,6 +70,7 @@ class EventData:
     winners_info: List[WinnerInfo] = field(default_factory=list)  # 당첨자 개인정보
     next_draw_number: int = 1
     pending_draw: Optional[PendingDraw] = None  # 결과 발표 대기 중인 추첨
+    session_id: str = ""  # 이벤트 세션 ID (리셋 시 재생성)
 
 
 # ============================================================
@@ -131,8 +132,10 @@ class LuckyDrawService:
     def _get_event_data(self, event_id: str) -> EventData:
         """이벤트 데이터 가져오기 (없으면 초기화)"""
         if event_id not in self._storage:
-            self._storage[event_id] = EventData()
-            logger.info(f"[이벤트 생성] event_id={event_id}")
+            # 새 이벤트 생성 시 session_id도 함께 생성
+            new_session_id = secrets.token_urlsafe(16)
+            self._storage[event_id] = EventData(session_id=new_session_id)
+            logger.info(f"[이벤트 생성] event_id={event_id}, session_id={new_session_id[:8]}...")
         return self._storage[event_id]
 
     @staticmethod
@@ -180,6 +183,7 @@ class LuckyDrawService:
                     "draw_number": participant.draw_number,
                     "session_token": session_token,
                     "event_id": event_id,
+                    "event_session_id": event_data.session_id,
                     "is_existing": True
                 }
 
@@ -213,6 +217,7 @@ class LuckyDrawService:
                 "draw_number": draw_number,
                 "session_token": new_token,
                 "event_id": event_id,
+                "event_session_id": event_data.session_id,
                 "is_existing": False
             }
 
@@ -727,7 +732,7 @@ class LuckyDrawService:
                 "draw_number": int,
                 "prize_name": str,
                 "name": str,
-                "phone": str,  # 마스킹된 연락처
+                "phone": str,  # 전체 연락처 (Admin 전용)
                 "submitted_at": str
             }]
         """
@@ -738,7 +743,7 @@ class LuckyDrawService:
                 "draw_number": w.draw_number,
                 "prize_name": w.prize_name,
                 "name": w.name,
-                "phone": self._mask_phone(w.phone),
+                "phone": w.phone,  # Admin은 전체 번호 확인 가능
                 "submitted_at": w.submitted_at
             }
             for w in event_data.winners_info
@@ -785,24 +790,35 @@ class LuckyDrawService:
         event_data = self._get_event_data(event_id)
 
         async with lock:
+            new_session_id = None
+
             if reset_participants:
                 event_data.participants = {}
                 event_data.next_draw_number = 1
-                logger.info(f"[리셋] event_id={event_id}, 참가자 목록 삭제")
+                event_data.winners_info = []  # 당첨자 정보도 함께 삭제
+                # 참가자 리셋 시 새 session_id 생성
+                new_session_id = secrets.token_urlsafe(16)
+                event_data.session_id = new_session_id
+                logger.info(f"[리셋] event_id={event_id}, 참가자 목록 삭제, new_session_id={new_session_id[:8]}...")
 
             if reset_draws:
                 event_data.draws = []
+                event_data.pending_draw = None  # 대기 중인 추첨도 초기화
                 logger.info(f"[리셋] event_id={event_id}, 추첨 이력 삭제")
 
             if not reset_participants and not reset_draws:
                 return {"message": "리셋할 항목이 없습니다."}
 
-            # 리셋 브로드캐스트
-            await self.connection_manager.broadcast(event_id, {
+            # 리셋 브로드캐스트 (새 session_id 포함)
+            broadcast_data = {
                 "type": "event_reset",
                 "reset_participants": reset_participants,
                 "reset_draws": reset_draws
-            })
+            }
+            if new_session_id:
+                broadcast_data["event_session_id"] = new_session_id
+
+            await self.connection_manager.broadcast(event_id, broadcast_data)
 
             messages = []
             if reset_participants:
@@ -811,7 +827,8 @@ class LuckyDrawService:
                 messages.append("추첨 이력")
 
             return {
-                "message": f"{', '.join(messages)}이(가) 리셋되었습니다."
+                "message": f"{', '.join(messages)}이(가) 리셋되었습니다.",
+                "event_session_id": event_data.session_id
             }
 
     # ============================================================

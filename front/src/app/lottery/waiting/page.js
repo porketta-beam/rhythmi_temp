@@ -10,6 +10,14 @@ import { luckydrawSocket } from '../../../lib/websocket/luckydrawSocket';
 import { DEFAULT_EVENT_ID } from '../../../lib/lottery/constants';
 import { padNumber } from '../../../lib/lottery/utils';
 
+// localStorage 키 상수
+const STORAGE_KEYS = {
+  TICKET_NUMBER: 'lottery_ticketNumber',
+  PERSONAL_INFO: 'lottery_personalInfo',
+  WAITING_STEP: 'lottery_waitingStep',
+  EVENT_SESSION_ID: 'lottery_eventSessionId',
+};
+
 /**
  * WaitingPage - 참가자 대기 페이지
  *
@@ -17,12 +25,16 @@ import { padNumber } from '../../../lib/lottery/utils';
  * 1. consent - 개인정보 수집 동의
  * 2. personal - 이름/연락처 입력
  * 3. waiting - 추첨 대기 및 결과 확인
+ *
+ * 세션 관리:
+ * - 서버에서 이벤트 리셋 시 새로운 event_session_id 발급
+ * - 클라이언트는 저장된 ID와 서버 ID 비교하여 불일치 시 초기화
  */
 export default function WaitingPage() {
   // 단계 상태: consent → personal → waiting
   const [step, setStep] = useState('consent');
 
-  // 개인정보 상태 (메모리 + sessionStorage 백업)
+  // 개인정보 상태 (메모리 + localStorage 백업)
   const [personalInfo, setPersonalInfo] = useState(null);
 
   // 서버에서 발급받은 번호
@@ -38,12 +50,12 @@ export default function WaitingPage() {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [error, setError] = useState(null);
 
-  // Hydration 완료 후 sessionStorage에서 기존 데이터 로드
+  // Hydration 완료 후 localStorage에서 기존 데이터 로드
   useEffect(() => {
     (() => {
-      const storedNumber = sessionStorage.getItem('ticketNumber');
-      const storedInfo = sessionStorage.getItem('personalInfo');
-      const storedStep = sessionStorage.getItem('waitingStep');
+      const storedNumber = localStorage.getItem(STORAGE_KEYS.TICKET_NUMBER);
+      const storedInfo = localStorage.getItem(STORAGE_KEYS.PERSONAL_INFO);
+      const storedStep = localStorage.getItem(STORAGE_KEYS.WAITING_STEP);
 
       if (storedNumber) {
         setTicketNumber(storedNumber);
@@ -66,25 +78,31 @@ export default function WaitingPage() {
   // 동의 완료 핸들러
   const handleConsent = useCallback(() => {
     setStep('personal');
-    sessionStorage.setItem('waitingStep', 'personal');
+    localStorage.setItem(STORAGE_KEYS.WAITING_STEP, 'personal');
   }, []);
 
   // 개인정보 입력 완료 핸들러
   const handlePersonalInfoSubmit = useCallback(async (info) => {
     setPersonalInfo(info);
-    sessionStorage.setItem('personalInfo', JSON.stringify(info));
+    localStorage.setItem(STORAGE_KEYS.PERSONAL_INFO, JSON.stringify(info));
 
     // 서버에 참가자 등록
     try {
       const result = await luckydrawAPI.register(DEFAULT_EVENT_ID);
       const newNumber = padNumber(result.drawNumber);
-      sessionStorage.setItem('ticketNumber', newNumber);
+
+      // 서버 응답 저장 (번호 + 이벤트 세션 ID)
+      localStorage.setItem(STORAGE_KEYS.TICKET_NUMBER, newNumber);
+      if (result.eventSessionId) {
+        localStorage.setItem(STORAGE_KEYS.EVENT_SESSION_ID, result.eventSessionId);
+      }
+
       setTicketNumber(newNumber);
       setError(null);
 
       // waiting 단계로 이동
       setStep('waiting');
-      sessionStorage.setItem('waitingStep', 'waiting');
+      localStorage.setItem(STORAGE_KEYS.WAITING_STEP, 'waiting');
     } catch (err) {
       console.error('참가자 등록 실패:', err);
       setError(err.message || '등록에 실패했습니다');
@@ -94,7 +112,7 @@ export default function WaitingPage() {
   // 뒤로가기 핸들러
   const handleBack = useCallback(() => {
     setStep('consent');
-    sessionStorage.setItem('waitingStep', 'consent');
+    localStorage.setItem(STORAGE_KEYS.WAITING_STEP, 'consent');
   }, []);
 
   // WebSocket 이벤트 핸들러
@@ -143,19 +161,42 @@ export default function WaitingPage() {
     }
   }, [ticketNumber, personalInfo]);
 
+  // localStorage 초기화 헬퍼 함수
+  const clearAllStorageData = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.TICKET_NUMBER);
+    localStorage.removeItem(STORAGE_KEYS.PERSONAL_INFO);
+    localStorage.removeItem(STORAGE_KEYS.WAITING_STEP);
+    localStorage.removeItem(STORAGE_KEYS.EVENT_SESSION_ID);
+    setTicketNumber(null);
+    setPersonalInfo(null);
+    setStep('consent');
+    setIsWinner(false);
+    setWonPrizeName(null);
+    setIsStandby(false);
+    setIsDrawing(false);
+    setCurrentPrize(null);
+    console.log('[Waiting] 모든 데이터 초기화 완료');
+  }, []);
+
   const handleEventReset = useCallback((data) => {
     console.log('[Waiting] event_reset:', data);
+
+    // 서버에서 새 session_id가 오면 저장된 ID와 비교
+    if (data.event_session_id) {
+      const storedSessionId = localStorage.getItem(STORAGE_KEYS.EVENT_SESSION_ID);
+      if (storedSessionId && storedSessionId !== data.event_session_id) {
+        // 세션 ID가 다르면 무조건 초기화 (다른 이벤트 세션)
+        console.log('[Waiting] 세션 ID 불일치 - 초기화');
+        console.log(`  저장된 ID: ${storedSessionId}`);
+        console.log(`  새 ID: ${data.event_session_id}`);
+        clearAllStorageData();
+        return;
+      }
+    }
+
     if (data.reset_participants) {
       // 참가자 목록이 리셋되면 처음으로
-      sessionStorage.removeItem('ticketNumber');
-      sessionStorage.removeItem('personalInfo');
-      sessionStorage.removeItem('waitingStep');
-      setTicketNumber(null);
-      setPersonalInfo(null);
-      setStep('consent');
-      setIsWinner(false);
-      setWonPrizeName(null);
-      setIsStandby(false);
+      clearAllStorageData();
     }
     if (data.reset_draws) {
       setIsDrawing(false);
@@ -164,7 +205,7 @@ export default function WaitingPage() {
       setIsWinner(false);
       setWonPrizeName(null);
     }
-  }, []);
+  }, [clearAllStorageData]);
 
   // WebSocket 연결 및 이벤트 리스너 등록
   useEffect(() => {
