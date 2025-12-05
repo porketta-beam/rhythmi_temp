@@ -195,9 +195,6 @@ export const SlotMachine = forwardRef(function SlotMachine({ onBack, currentPriz
                       />
                     </motion.div>
                   )}
-                  <span className="text-xl sm:text-2xl md:text-3xl text-yellow-400 font-bold" style={{ fontFamily: 'Pretendard, sans-serif' }}>
-                    🎁 {currentPrize} 당첨!
-                  </span>
                 </motion.div>
               )}
               
