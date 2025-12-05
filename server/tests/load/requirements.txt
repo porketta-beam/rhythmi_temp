@@ -1,0 +1,4 @@
+# 부하 테스트 의존성
+websockets>=12.0
+aiohttp>=3.9.0
+psutil>=5.9.0

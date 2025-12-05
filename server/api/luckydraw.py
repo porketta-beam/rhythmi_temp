@@ -400,6 +400,52 @@ async def reveal_winner(event_id: str):
         )
 
 
+@router.post(
+    "/admin/{event_id}/draw/complete",
+    summary="추첨 완료 (기록 저장)",
+    description="추첨 결과를 이력에 기록하고 waiting/admin에 알림"
+)
+async def complete_draw(event_id: str):
+    """
+    추첨 완료 API
+
+    **용도**:
+    - WebSocket 없이 REST API만으로 추첨을 완료할 때 사용
+    - reveal 호출 후 이 엔드포인트를 호출하면 추첨 이력이 기록됨
+
+    **플로우**:
+    1. reveal 호출 → 당첨번호 공개
+    2. complete 호출 → draws에 기록 + waiting/admin 알림
+    """
+    try:
+        service = get_luckydraw_service()
+        result = await service.complete_draw(event_id=event_id)
+
+        return {
+            "success": True,
+            "data": result
+        }
+
+    except ValueError as e:
+        logger.error(f"[ERROR] 추첨 완료 실패: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "COMPLETE_FAILED",
+                "message": str(e)
+            }
+        )
+    except Exception as e:
+        logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "서버 내부 에러가 발생했습니다"
+            }
+        )
+
+
 @router.get(
     "/check-winner",
     summary="당첨 여부 확인",

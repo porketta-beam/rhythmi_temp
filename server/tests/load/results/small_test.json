@@ -1,0 +1,29 @@
+{
+  "summary": {
+    "total_users": 50,
+    "total_prizes": 20,
+    "duration_seconds": "71.7"
+  },
+  "registration": {
+    "success": 50,
+    "failed": 0,
+    "success_rate": "100.0%",
+    "time_ms": {
+      "min": "0.95",
+      "max": "4.23",
+      "avg": "1.97",
+      "p95": "3.12"
+    }
+  },
+  "websocket": {
+    "connected": 50,
+    "failed": 0,
+    "messages_received": 385
+  },
+  "draw": {
+    "success": 20,
+    "failed": 0,
+    "winners_found": 0
+  },
+  "errors_count": 0
+}
