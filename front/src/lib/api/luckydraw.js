@@ -258,29 +258,26 @@ class LuckyDrawAPI {
   }
 
   /**
-   * 추첨 실행 (레거시 - 직접 추첨 + 즉시 발표)
+   * 당첨 여부 확인
+   *
+   * 재접속 시 클라이언트가 당첨 여부를 확인할 때 사용합니다.
    *
    * @param {string} eventId - 이벤트 ID
-   * @param {string} prizeName - 상품 이름
-   * @param {number} prizeRank - 상품 등급
-   * @param {number} count - 당첨자 수 (기본값: 1)
-   * @returns {Promise<{prizeName: string, prizeRank: number, winners: Array, drawnAt: string}>}
+   * @param {number} drawNumber - 확인할 추첨 번호
+   * @returns {Promise<{won: boolean, prizes: Array}>}
    */
-  async draw(eventId, prizeName, prizeRank, count = 1) {
-    const result = await this._request(`/admin/${encodeURIComponent(eventId)}/draw`, {
-      method: "POST",
-      body: JSON.stringify({
-        prize_name: prizeName,
-        prize_rank: prizeRank,
-        count,
-      }),
-    });
+  async checkWinner(eventId, drawNumber) {
+    const result = await this._request(
+      `/check-winner?event_id=${encodeURIComponent(eventId)}&draw_number=${drawNumber}`
+    );
 
     return {
-      prizeName: result.data.prize_name,
-      prizeRank: result.data.prize_rank,
-      winners: result.data.winners.map((w) => w.draw_number),
-      drawnAt: result.data.drawn_at,
+      won: result.data.won,
+      prizes: result.data.prizes.map((p) => ({
+        prizeName: p.prize_name,
+        prizeRank: p.prize_rank,
+        drawnAt: p.drawn_at,
+      })),
     };
   }
 

@@ -282,100 +282,37 @@ class LuckyDrawService:
     # 추첨 관련 메서드
     # ============================================================
 
-    async def draw_winner(
-        self,
-        event_id: str,
-        prize_name: str,
-        prize_rank: int,
-        count: int = 1
-    ) -> Dict:
+    def check_winner(self, event_id: str, draw_number: int) -> Dict:
         """
-        추첨 실행
+        특정 번호의 당첨 여부 확인
 
         Args:
             event_id: 이벤트 ID
-            prize_name: 상품 이름 (예: "1등 상")
-            prize_rank: 상품 등급 (1, 2, 3...)
-            count: 당첨자 수 (기본값: 1)
+            draw_number: 확인할 추첨 번호
 
         Returns:
             {
-                "prize_name": str,
-                "prize_rank": int,
-                "winners": List[{"draw_number": int}],
-                "drawn_at": str
+                "won": bool,
+                "prizes": List[{"prize_name": str, "prize_rank": int, "drawn_at": str}]
             }
         """
-        lock = self._get_lock(event_id)
         event_data = self._get_event_data(event_id)
 
-        async with lock:
-            # 참가자 목록 확인
-            if not event_data.participants:
-                raise ValueError("참가자가 없습니다. 추첨을 진행할 수 없습니다.")
-
-            # 이미 당첨된 번호 목록 (해당 등급에서)
-            existing_winners = {
-                draw.draw_number
-                for draw in event_data.draws
-                if draw.prize_rank == prize_rank
+        # 해당 번호의 당첨 기록 조회
+        won_prizes = [
+            {
+                "prize_name": draw.prize_name,
+                "prize_rank": draw.prize_rank,
+                "drawn_at": draw.drawn_at
             }
+            for draw in event_data.draws
+            if draw.draw_number == draw_number
+        ]
 
-            # 추첨 가능한 번호 목록
-            available_numbers = [
-                p.draw_number
-                for p in event_data.participants.values()
-                if p.draw_number not in existing_winners
-            ]
-
-            if not available_numbers:
-                raise ValueError(
-                    f"추첨 가능한 참가자가 없습니다. "
-                    f"(이미 {prize_rank}등 상에 당첨된 참가자만 남았습니다)"
-                )
-
-            if len(available_numbers) < count:
-                raise ValueError(
-                    f"요청한 당첨자 수({count})가 "
-                    f"추첨 가능한 참가자 수({len(available_numbers)})보다 많습니다."
-                )
-
-            # 랜덤 추첨
-            selected_numbers = random.sample(available_numbers, count)
-            drawn_at = datetime.now().isoformat()
-
-            # 추첨 기록 저장
-            for draw_number in selected_numbers:
-                record = DrawRecord(
-                    prize_name=prize_name,
-                    prize_rank=prize_rank,
-                    draw_number=draw_number,
-                    drawn_at=drawn_at
-                )
-                event_data.draws.append(record)
-
-            logger.info(
-                f"[추첨 완료] event_id={event_id}, "
-                f"prize_name={prize_name}, "
-                f"prize_rank={prize_rank}, "
-                f"winners={selected_numbers}"
-            )
-
-            # 당첨자 브로드캐스트
-            await self.connection_manager.broadcast(event_id, {
-                "type": "winner_announced",
-                "prize_name": prize_name,
-                "prize_rank": prize_rank,
-                "winners": selected_numbers,
-                "drawn_at": drawn_at
-            })
-
-            return {
-                "prize_name": prize_name,
-                "prize_rank": prize_rank,
-                "winners": [{"draw_number": num} for num in selected_numbers],
-                "drawn_at": drawn_at
-            }
+        return {
+            "won": len(won_prizes) > 0,
+            "prizes": won_prizes
+        }
 
     async def standby_draw(
         self,

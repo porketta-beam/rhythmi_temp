@@ -207,6 +207,16 @@ export default function WaitingPage() {
     }
   }, [clearAllStorageData]);
 
+  // WebSocket already_won 이벤트 핸들러 (재접속 시 당첨 여부 확인)
+  const handleAlreadyWon = useCallback((data) => {
+    console.log('[Waiting] already_won:', data);
+    if (data.won && data.prizes && data.prizes.length > 0) {
+      setIsWinner(true);
+      // 가장 최근 당첨 상품명 표시
+      setWonPrizeName(data.prizes[0].prize_name);
+    }
+  }, []);
+
   // WebSocket 연결 및 이벤트 리스너 등록
   useEffect(() => {
     luckydrawSocket.connect(DEFAULT_EVENT_ID)
@@ -220,6 +230,13 @@ export default function WaitingPage() {
 
     const unsubscribeConnected = luckydrawSocket.on('connected', () => {
       setConnectionStatus('connected');
+      // 연결 성공 후 identify 메시지 전송 (당첨 여부 확인)
+      const storedNumber = localStorage.getItem(STORAGE_KEYS.TICKET_NUMBER);
+      if (storedNumber) {
+        const drawNumber = parseInt(storedNumber, 10);
+        console.log('[Waiting] identify 전송:', drawNumber);
+        luckydrawSocket.send('identify', { draw_number: drawNumber });
+      }
     });
 
     const unsubscribeDisconnected = luckydrawSocket.on('disconnected', () => {
@@ -230,6 +247,7 @@ export default function WaitingPage() {
     const unsubscribeDrawStarted = luckydrawSocket.on('draw_started', handleDrawStarted);
     const unsubscribeWinner = luckydrawSocket.on('winner_announced', handleWinnerAnnounced);
     const unsubscribeReset = luckydrawSocket.on('event_reset', handleEventReset);
+    const unsubscribeAlreadyWon = luckydrawSocket.on('already_won', handleAlreadyWon);
 
     return () => {
       unsubscribeConnected();
@@ -238,9 +256,32 @@ export default function WaitingPage() {
       unsubscribeDrawStarted();
       unsubscribeWinner();
       unsubscribeReset();
+      unsubscribeAlreadyWon();
       luckydrawSocket.disconnect();
     };
-  }, [handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset]);
+  }, [handleDrawStandby, handleDrawStarted, handleWinnerAnnounced, handleEventReset, handleAlreadyWon]);
+
+  // 페이지 로드 시 API로 당첨 여부 확인 (WebSocket 백업)
+  useEffect(() => {
+    if (!isHydrated || !ticketNumber) return;
+
+    const checkWinnerStatus = async () => {
+      try {
+        const drawNumber = parseInt(ticketNumber, 10);
+        const result = await luckydrawAPI.checkWinner(DEFAULT_EVENT_ID, drawNumber);
+        console.log('[Waiting] API 당첨 확인:', result);
+        if (result.won && result.prizes.length > 0) {
+          setIsWinner(true);
+          setWonPrizeName(result.prizes[0].prizeName);
+        }
+      } catch (err) {
+        console.error('[Waiting] 당첨 확인 API 실패:', err);
+        // API 실패해도 WebSocket으로 확인 가능하므로 무시
+      }
+    };
+
+    checkWinnerStatus();
+  }, [isHydrated, ticketNumber]);
 
   // Hydration 대기 중
   if (!isHydrated) {

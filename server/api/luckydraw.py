@@ -400,50 +400,32 @@ async def reveal_winner(event_id: str):
         )
 
 
-@router.post(
-    "/admin/{event_id}/draw",
-    summary="추첨 실행",
-    description="추첨 실행 및 당첨자 선택"
+@router.get(
+    "/check-winner",
+    summary="당첨 여부 확인",
+    description="특정 추첨번호의 당첨 여부를 확인합니다"
 )
-async def draw_winner(event_id: str, request: DrawRequest):
+async def check_winner(event_id: str, draw_number: int):
     """
-    추첨 시작 API
+    당첨 여부 확인 API
 
-    **플로우**:
-    1. 참가자 목록 조회
-    2. 이미 당첨된 번호 제외
-    3. 랜덤 추첨
-    4. 추첨 이력 저장
+    재접속 시 클라이언트가 당첨 여부를 확인할 때 사용합니다.
 
-    **에러 처리**:
-    - 참가자 없음 → 400 에러
-    - 추첨 가능한 참가자 없음 → 400 에러
+    **반환값**:
+    - won: 당첨 여부 (true/false)
+    - prizes: 당첨된 상품 목록 (복수 당첨 시)
     """
     try:
         service = get_luckydraw_service()
-        result = await service.draw_winner(
-            event_id=event_id,
-            prize_name=request.prize_name,
-            prize_rank=request.prize_rank,
-            count=request.count
-        )
+        result = service.check_winner(event_id, draw_number)
 
         return {
             "success": True,
             "data": result
         }
 
-    except ValueError as e:
-        logger.error(f"[ERROR] 추첨 실패: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "DRAW_FAILED",
-                "message": str(e)
-            }
-        )
     except Exception as e:
-        logger.error(f"[ERROR] 서버 오류: {str(e)}", exc_info=True)
+        logger.error(f"[ERROR] 당첨 확인 실패: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -592,6 +574,7 @@ async def websocket_luckydraw(websocket: WebSocket, event_id: str):
 
     클라이언트→서버 메시지 타입:
     - ping: heartbeat
+    - identify: 클라이언트 식별 (draw_number 전송 → 당첨 여부 응답)
     - draw_complete: main 애니메이션 완료 알림
     """
     connection_manager = get_connection_manager()
@@ -610,6 +593,34 @@ async def websocket_luckydraw(websocket: WebSocket, event_id: str):
             # ping/pong heartbeat 처리
             if msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
+
+            # identify: 클라이언트 식별 및 당첨 여부 확인
+            elif msg_type == "identify":
+                draw_number = data.get("draw_number")
+                if draw_number is not None:
+                    try:
+                        service = get_luckydraw_service()
+                        result = service.check_winner(event_id, int(draw_number))
+                        if result["won"]:
+                            # 이미 당첨된 경우 알림
+                            await websocket.send_json({
+                                "type": "already_won",
+                                "won": True,
+                                "prizes": result["prizes"]
+                            })
+                            logger.info(f"[WS] already_won 전송: draw_number={draw_number}")
+                        else:
+                            await websocket.send_json({
+                                "type": "identify_ack",
+                                "won": False
+                            })
+                    except Exception as e:
+                        logger.error(f"[WS] identify 처리 오류: {e}")
+                        await websocket.send_json({
+                            "type": "identify_ack",
+                            "won": False,
+                            "error": str(e)
+                        })
 
             # draw_complete: main 애니메이션 완료 → waiting/admin에 당첨번호 전송
             elif msg_type == "draw_complete":
